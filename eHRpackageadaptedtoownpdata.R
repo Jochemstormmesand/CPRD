@@ -42,9 +42,19 @@ diabetes_codes <- clinical_codes[clinical_codes$list=="Diabetes",]
 select_events(db,tab="Clinical001", columns = c("patid", "eventdate", "medcode"),
               where = "medcode %in% .(diabetes_codes$medcode) & eventdate<'2006-01-01'&
                eventdate>='2005-01-01'")
+medlist = 180:200
+sqldf("SELECT patid, eventdate, medcode from Clinical001 WHERE .(medcode) = medlist", connection=db)
 
 wrap_sql_query("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in #1",cancer_codes1)
 expand_string("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in .(cancer_codes1)")
+
+
+
+b <- select_events(db, tab = "Referral001", columns = c("patid", "eventdate", "medcode"),
+                   where = "medcode %in% .(cancer_codes$medcode) & eventdate < '2000-01-01'")
+
+
+
 # Asthma_codes <- clinical_codes[clinical_codes$list=="Asthma",]
 # q <- select_events(db,tab="Clinical",columns=c("patid","eventdate","medcode"),
 #                    where="medcode %in% .(Asthma_codes$medcode)",
@@ -58,7 +68,7 @@ sqldf("SELECT patid, practid, gender, yob, deathdate from Patient001 WHERE gende
 
 medcodes1<- 1:5
 practice<- 255
-sqldf(expand_string("SELECT * FROM Clinical001 WHERE practid == .(practice) AND medcode ==.(cancer_codes)"), connection=db)
+expand_string("SELECT * FROM clinical001 WHERE practid == .(practice)")
 
 #wrap_sql_query("SELECT * FROM Clinical001 WHERE practid == # 1 AND medcode in # 2",practice,medcodes1)
 
