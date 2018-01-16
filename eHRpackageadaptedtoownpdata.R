@@ -9,7 +9,7 @@ library(RSQLite)
 ##2
 
 ## Use simulated ehr files supplied with the package to build database
-ehr_path <- dirname(system.file("ehr_data", "Sample_Clinical001.txt",
+ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT TEXT FILES ARE STORED IN C:\Users\Stormezand\Documents\R\win-library\3.3\rEHR\ehr_data 
        package = "rEHR"))
 ## create a new database connection to a temporary file
 db <- database(tempfile(fileext = ".sqlite"))
@@ -22,10 +22,11 @@ import_CPRD_data(db, data_dir = ehr_path,
      yob_origin = 1800,
      regex = "Sample",
      recursive = TRUE)
-## Individualfiles can also be added:
-add_to_database(db, files = system.file("ehr_data", "ehr_Therapy.txt",
-          package = "rEHR"),
-              table_name = "Therapy", dateformat = "%Y - %m - %d")
+# ## Individualfiles can also be added:
+# add_to_database(db, files = system.file("ehr_data", "Sample_Therapy001.txt",
+#           package = "rEHR"),
+#               table_name = "Therapy", dateformat = "%Y - %m - %d")
+
 ## Use the overloaded`head` function to view a list of
 ## tables or the head of individualtables:
 head(db)
@@ -39,8 +40,8 @@ cancer_codes <- clinical_codes[clinical_codes$list=="Cancer",]
 cancer_codes1 <- cancer_codes$medcode
 diabetes_codes <- clinical_codes[clinical_codes$list=="Diabetes",]
 select_events(db,tab="Clinical001", columns = c("patid", "eventdate", "medcode"),
-              where = "medcode %in% .(cancer_codes1)") & eventdate<'2006-01-01'&
-               eventdate>='2005-01-01'", sql_only = FALSE, convert_dates=FALSE)
+              where = "medcode %in% .(diabetes_codes$medcode) & eventdate<'2006-01-01'&
+               eventdate>='2005-01-01'")
 
 wrap_sql_query("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in #1",cancer_codes1)
 expand_string("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in .(cancer_codes1)")
