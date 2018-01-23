@@ -30,9 +30,9 @@ import_CPRD_data(db, data_dir = ehr_path,
      regex = "Sample",
      recursive = TRUE)
 ## Individualfiles can also be added:
-add_to_database(db, files = system.file("ehr_data", "product.txt",
+add_to_database(db, files = system.file("ehr_data", "Therapy001.txt",
           package = "rEHR"),
-          table_name = c("Consultation001","Patient001", "Practice001", 
+          table_name = c(""Consultation001","Patient001", "Practice001", 
 "Referral001", "Therapy001", "Test001", "Staff001"", dateformat = "%d/%m/%Y")
 
 ## Use the overloaded`head` function to view a list of
@@ -85,11 +85,11 @@ head(first_DM)
 head(last_DM)
 
 ##3.3.1
-registered_patients<- select_by_year(db=db, tables="Patient001",
-                      columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
-                      where="crd < STARTDATE", year_range=c(2008 : 2012), year_fn =standard_years)
- 
-str(registered_patients)
+# registered_patients<- select_by_year(db=db, tables="Patient001",
+#                       columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
+#                       where="crd < STARTDATE", year_range=c(2008 : 2012), year_fn =standard_years)
+#  
+# str(registered_patients)
 
 # table(registered_patients$year)
 
@@ -99,10 +99,10 @@ str(registered_patients)
 #                                   year_range=c(2008 : 2012), year_fn=standard_years, selector_fn =first_events)
 # str(incident_cases)
 # 
-# ## All patientsare kept (equivalentto merge(all.x= TRUE)) 
-# prevalence_dat<- left_join(registered_patients, incident_cases) 
-# ## Removeduplicatesacrossclinicaland referraltables: 
-# incident_cases%>% group_by(patid,year) %>% arrange(eventdate)%>% distinct() %>% ungroup-> incident_cases
+ ## All patientsare kept (equivalentto merge(all.x= TRUE)) 
+ prevalence_dat<- left_join(registered_patients, incident_cases) 
+ ## Removeduplicatesacrossclinicaland referraltables: 
+ incident_cases%>% group_by(patid,year) %>% arrange(eventdate)%>% distinct() %>% ungroup-> incident_cases
 
 # prevalence_dat<- prev_terms(prevalence_dat) 
 # totals<- prev_totals(prevalence_dat) 
