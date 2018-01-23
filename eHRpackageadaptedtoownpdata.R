@@ -1,10 +1,19 @@
-install.packages("devtools")
+## to do to make it work: 
+#run library and install for devtools, rEHR and 
+#get package with packageurl. 
+#in user library, make sure that: devtools, dplyr, (lazyeval), rEHR, RSQLite, sqldf are selected. 
+#untick, rEHR, untick dplyr, then tick them. 
+
+#install.packages("devtools")
 library(devtools)
-install_github("rOpenHealth/rEHR", lib = "C:\\Users\\Stormezand\\Documents\\Brain and Cognitive Sciences\\Research Internship 2\\Jochem data\\rEHR-master\\rEHR-master")
+install_github("rOpenHealth/rEHR")
 library(rEHR)
-library(RSQLite)
-#install.packages("dbplyr")
-#library(dbplyr)
+#install.packages("lazyeval")
+
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/dplyr/dplyr_0.5.0.tar.gz"
+install.packages(packageurl, repos = NULL, type="source")
+library(dplyr)
+
 
 ##2
 
@@ -15,79 +24,72 @@ ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
 import_CPRD_data(db, data_dir = ehr_path,
-     filetypes = c("Clinical001", "Consultation001",
-                   "Patient001", "Practice001", 
-                   "Referral001", "Therapy001", "Test001", "Staff001"),
-     dateformat = "%Y - %m - %d",
+     filetypes = c("Clinical001"),
+     dateformat = "%d/%m/%Y",
      yob_origin = 1800,
      regex = "Sample",
      recursive = TRUE)
-# ## Individualfiles can also be added:
-# add_to_database(db, files = system.file("ehr_data", "Sample_Therapy001.txt",
-#           package = "rEHR"),
-#               table_name = "Therapy", dateformat = "%Y - %m - %d")
+## Individualfiles can also be added:
+add_to_database(db, files = system.file("ehr_data", "product.txt",
+          package = "rEHR"),
+          table_name = c("Consultation001","Patient001", "Practice001", 
+"Referral001", "Therapy001", "Test001", "Staff001"", dateformat = "%d/%m/%Y")
 
 ## Use the overloaded`head` function to view a list of
 ## tables or the head of individualtables:
 head(db)
-
-
-
-
+head(db, table="Clinical001")
 
 ##3.1
 cancer_codes <- clinical_codes[clinical_codes$list=="Cancer",]
 cancer_codes1 <- cancer_codes$medcode
 diabetes_codes <- clinical_codes[clinical_codes$list=="Diabetes",]
 select_events(db,tab="Clinical001", columns = c("patid", "eventdate", "medcode"),
-              where = "medcode %in% .(diabetes_codes$medcode) & eventdate<'2006-01-01'&
-               eventdate>='2005-01-01'")
-medlist = 180:200
-sqldf("SELECT patid, eventdate, medcode from Clinical001 WHERE .(medcode) = medlist", connection=db)
+              where = "medcode %in% .(diabetes_codes$medcode)")
 
-wrap_sql_query("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in #1",cancer_codes1)
-expand_string("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in .(cancer_codes1)")
-
-
-
-b <- select_events(db, tab = "Referral001", columns = c("patid", "eventdate", "medcode"),
-                   where = "medcode %in% .(cancer_codes$medcode) & eventdate < '2000-01-01'")
+      # sqldf("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode > 500 AND medcode<1000 ", connection=db)
+      # medlist = 180:200
+      # sqldf("SELECT patid, eventdate, medcode FROM Clinical001 WHERE .(medcode) = medlist", connection=db)
+      # 
+      # sqldf("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode %in% parkinson_codes", connection=db)
+      # 
+      # wrap_sql_query("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in #1",cancer_codes1)
+      # expand_string("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in .(cancer_codes1)")
 
 
+Asthma_codes <- clinical_codes[clinical_codes$list=="Asthma",]
+q <- select_events(db,tab="Clinical001",columns=c("patid","eventdate","medcode"),
+                   where="medcode %in% .(Asthma_codes$medcode)",
+                   sql_only=TRUE)
+temp_table(db,tab_name="Asthma",select_query =q)
+head(db,temp=TRUE)
+head(db,table="Asthma")
 
-# Asthma_codes <- clinical_codes[clinical_codes$list=="Asthma",]
-# q <- select_events(db,tab="Clinical",columns=c("patid","eventdate","medcode"),
-#                    where="medcode %in% .(Asthma_codes$medcode)",
-#                    sql_only=TRUE)
-# temp_table(db,tab_name="Asthma",select_query =q)
-# head(db,temp=TRUE)
-# head(db,table="Asthma")
-
-sqldf("SELECT patid, practid, gender, yob, deathdate from Patient001 WHERE gender IS 2",
+sqldf("SELECT patid, practid, gender, yob, deathdate from Patient001 WHERE gender IS NOT NULL LIMIT 6",
       connection=db)
 
 medcodes1<- 1:5
 practice<- 255
 expand_string("SELECT * FROM clinical001 WHERE practid == .(practice)")
 
-#wrap_sql_query("SELECT * FROM Clinical001 WHERE practid == # 1 AND medcode in # 2",practice,medcodes1)
+        # wrap_sql_query(-
+        # "SELECT * FROM clinical001 WHERE practid == # 1 AND medcodes in # 2",practice,medcodes1)
 
 ##3.2
 
-# first_DM<- first_events(db,tab="Clinical", columns=c("patid", "eventdate", "medcode"),
-#                          where="medcode %in% .(diabetes_codes$medcode)")
-first_DM <- 
-# last_DM<- last_events(db,tab="Clinical", columns=c("patid", "eventdate", "medcode"),
-#                        where="medcode %in% .(diabetes_codes$medcode)") 
-# head(first_DM)
-# head(last_DM)
+first_DM<- first_events(db,tab="Clinical001", columns=c("patid", "eventdate", "medcode"),
+                         where="medcode %in% .(diabetes_codes$medcode)")
+last_DM<- last_events(db,tab="Clinical001", columns=c("patid", "eventdate", "medcode"),
+                       where="medcode %in% .(diabetes_codes$medcode)")
+head(first_DM)
+head(last_DM)
 
 ##3.3.1
-# registered_patients<- select_by_year(db=db, tables="patient",
-#                                         columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
-#                                         where="crd < STARTDATE", year_range=c(2008 : 2012), year_fn =standard_years)
+registered_patients<- select_by_year(db=db, tables="Patient001",
+                      columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
+                      where="crd < STARTDATE", year_range=c(2008 : 2012), year_fn =standard_years)
  
-# str(registered_patients)
+str(registered_patients)
 
 # table(registered_patients$year)
 
