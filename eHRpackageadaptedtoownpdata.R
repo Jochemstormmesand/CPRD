@@ -1,20 +1,22 @@
 ## to do to make it work: 
 #run library and install for devtools, rEHR and 
 #get package with packageurl. 
-#in user library, make sure that: devtools, dplyr, (lazyeval), rEHR, RSQLite, sqldf are selected. 
-#untick, rEHR, untick dplyr, then tick them. 
+#in user library, make sure that: devtools, dplyr, gsubfn, proto, rEHR, RSQLite, sqldf are selected. 
+#IF NOT WORKING: untick, rEHR, untick dplyr, then tick them. 
 
-#install.packages("devtools")
-library(devtools)
-install_github("rOpenHealth/rEHR")
-library(rEHR)
-#install.packages("lazyeval")
 
+
+############## should already have been installed:
+install_github("rOpenHealth/rEHR") 
 packageurl <- "https://cran.r-project.org/src/contrib/Archive/dplyr/dplyr_0.5.0.tar.gz"
 install.packages(packageurl, repos = NULL, type="source")
 library(dplyr)
+##############
 
+library(devtools)
+library(rEHR)
 
+#STARTING THE SCRIPT
 ##2
 
 ## Use simulated ehr files supplied with the package to build database
@@ -45,7 +47,7 @@ cancer_codes <- clinical_codes[clinical_codes$list=="Cancer",]
 cancer_codes1 <- cancer_codes$medcode
 diabetes_codes <- clinical_codes[clinical_codes$list=="Diabetes",]
 select_events(db,tab="Clinical001", columns = c("patid", "eventdate", "medcode"),
-              where = "medcode %in% .(diabetes_codes$medcode)")
+              where = "medcode %in% .(diabetes_codes$medcode) & eventdate<'2006-01-01'&eventdate>='2005-01-01'")
 
       # sqldf("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode > 500 AND medcode<1000 ", connection=db)
       # medlist = 180:200
