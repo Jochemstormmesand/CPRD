@@ -1,20 +1,27 @@
-## to do to make it work: 
+#### to do to make it work: 
 #run library and install for devtools, rEHR and 
 #get package with packageurl. 
+#before installing dplyr package, make sure rtools is installed https://cran.r-project.org/bin/windows/Rtools/ 
 #in user library, make sure that: devtools, dplyr, gsubfn, proto, rEHR, RSQLite, sqldf are selected. 
 #IF NOT WORKING: untick, rEHR, untick dplyr, then tick them. 
 
 
-
 ############## should already have been installed:
-install_github("rOpenHealth/rEHR") 
-packageurl <- "https://cran.r-project.org/src/contrib/Archive/dplyr/dplyr_0.5.0.tar.gz"
-install.packages(packageurl, repos = NULL, type="source")
-library(dplyr)
+#install_github("rOpenHealth/rEHR") 
+#packageurl <- "https://cran.r-project.org/src/contrib/Archive/dplyr/dplyr_0.5.0.tar.gz"
+#install.packages(packageurl, repos = NULL, type="source")
+#library(dplyr)
 ##############
 
 library(devtools)
 library(rEHR)
+
+
+#TO DO with the script
+#from therapy file get all immunosuppressant codes and see how many are other. 
+#cumulative dose (difficult --> multiply dose, with duration with start date, end date etc)
+
+
 
 #STARTING THE SCRIPT
 ##2
@@ -26,16 +33,16 @@ ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
 import_CPRD_data(db, data_dir = ehr_path,
-     filetypes = c("Clinical001"),
+     filetypes = c("Clinical001", "Consultation001","Patient001", "Practice001", 
+                   "Referral001", "Therapy001", "Test001", "Staff001"),
      dateformat = "%d/%m/%Y",
      yob_origin = 1800,
      regex = "Sample",
      recursive = TRUE)
 ## Individualfiles can also be added:
-add_to_database(db, files = system.file("ehr_data", "Therapy001.txt",
-          package = "rEHR"),
-          table_name = c(""Consultation001","Patient001", "Practice001", 
-"Referral001", "Therapy001", "Test001", "Staff001"", dateformat = "%d/%m/%Y")
+            # add_to_database(db, files = system.file("ehr_data", "Therapy001.txt",
+            #           package = "rEHR"),
+            #           table_name = c("", dateformat = "%d/%m/%Y")
 
 ## Use the overloaded`head` function to view a list of
 ## tables or the head of individualtables:
@@ -86,12 +93,21 @@ last_DM<- last_events(db,tab="Clinical001", columns=c("patid", "eventdate", "med
 head(first_DM)
 head(last_DM)
 
+
+###########
+# Runs perfectly fine until here. 
+
+# Error in .Call("dplyr_bind_rows_", PACKAGE = "dplyr", dots, id) : 
+#   "dplyr_bind_rows_" not available for .Call() for package "dplyr"
+###########
+
+
 ##3.3.1
-# registered_patients<- select_by_year(db=db, tables="Patient001",
-#                       columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
-#                       where="crd < STARTDATE", year_range=c(2008 : 2012), year_fn =standard_years)
-#  
-# str(registered_patients)
+registered_patients<- select_by_year(db=db, tables="Patient001",
+                      columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
+                      where="crd < STARTDATE", year_range=c(2008 : 2012), year_fn =standard_years, first_events)
+
+str(registered_patients)
 
 # table(registered_patients$year)
 
