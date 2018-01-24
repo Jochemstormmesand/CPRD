@@ -16,5 +16,7 @@ UniquePP = length(unique(SelParkinsoncodes$patid))
 #Calculate drug duration * dose *
 
 
+UsedMed <- SelImmuneMed %>% 
+  mutate(MedMultiplication = numdays * numpacks * packtype)
 
 

@@ -118,9 +118,9 @@ str(registered_patients)
 # str(incident_cases)
 # 
  ## All patientsare kept (equivalentto merge(all.x= TRUE)) 
- prevalence_dat<- left_join(registered_patients, incident_cases) 
+ #prevalence_dat<- left_join(registered_patients, incident_cases) 
  ## Removeduplicatesacrossclinicaland referraltables: 
- incident_cases%>% group_by(patid,year) %>% arrange(eventdate)%>% distinct() %>% ungroup-> incident_cases
+ #incident_cases%>% group_by(patid,year) %>% arrange(eventdate)%>% distinct() %>% ungroup-> incident_cases
 
 # prevalence_dat<- prev_terms(prevalence_dat) 
 # totals<- prev_totals(prevalence_dat) 
