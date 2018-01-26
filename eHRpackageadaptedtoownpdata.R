@@ -6,6 +6,12 @@
 #IF NOT WORKING: untick, rEHR, untick dplyr, then tick them. 
 
 # ############## WHAT YOU SHOULD INSTALL ACCORDING TO PAPER. SKIP THESE, CAUSE VERSIONS INCORRECT!
+# Jochem Stormmesand
+# Research Project on Immunosuppressive Therapy and Parkinson Risk
+#
+# Package used as described by Springate et al. 2017
+
+# ############## PACKAGE INSTALLATION AS DESCRIBED BY PAPER. DOESN'T WORK
 # library(devtools)
 # install_github("rOpenHealth/rEHR")
 # library(rEHR)
@@ -36,34 +42,55 @@
 ##2
 
 ## Use simulated ehr files supplied with the package to build database
-ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT TEXT FILES ARE STORED IN C:\Users\Stormezand\Documents\R\win-library\3.3\rEHR\ehr_data 
+ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT SAMPLE_ TEXT FILES ARE STORED IN C:\Users\Stormezand\Documents\R\win-library\3.3\rEHR\ehr_data 
        package = "rEHR"))
 ## create a new database connection to a temporary file
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
-import_CPRD_data(db, data_dir = ehr_path,         ########first add Sample_ files to folder --> C:\Users\Stormezand\Documents\R\win-library\3.3\rEHR\ehr_data
+import_CPRD_data(db, data_dir = ehr_path,         
      filetypes = c("Clinical001", "Consultation001","Patient001", "Practice001", 
                    "Referral001", "Therapy001", "Test001", "Staff001"),
      dateformat = "%d/%m/%Y",
      yob_origin = 1800,
      regex = "Sample",
      recursive = TRUE)
-## Individualfiles can also be added:
-            # add_to_database(db, files = system.file("ehr_data", "Therapy001.txt",
-            #           package = "rEHR"),
-            #           table_name = c("", dateformat = "%d/%m/%Y")
+## Individual files can also be added:
+            add_to_database(db, files = system.file("ehr_data", "productandmedicalcodelists.txt",
+                     package = "rEHR"),
+                     table_name = c("ProdandMedcodelist", dateformat = "%b-%d"))
 
 ## Use the overloaded`head` function to view a list of
-## tables or the head of individualtables:
+## tables or the head of individual tables:
 head(db)
 head(db, table="Clinical001")
 
 ##3.1
-cancer_codes <- clinical_codes[clinical_codes$list=="Cancer",]
-cancer_codes1 <- cancer_codes$medcode
-diabetes_codes <- clinical_codes[clinical_codes$list=="Diabetes",]
+#cancer_codes <- clinical_codes[clinical_codes$list=="Cancer",]
+#diabetes_codes <- clinical_codes[clinical_codes$list=="Diabetes",]
+Parkinsoncodes = as.numeric(unlist(strsplit(c("1691 4321 8956	9509 10718 14912 16860 17004 53655 59824 86062 96860 101090"), "\\s+")[[1]]))
+ParkinsonExclusioncodes = as.numeric(unlist(strsplit(c("19478	24001	26181	33544	51105	52589	72879	97170	100128"))))
+ImmuneMed = as.numeric(unlist(strsplit(c("23850	6882	50996	52833	42273	30495	39115	13320	55773	53869	54982	36792	671	451	32101	43077	34816	41670	19072	12339	26261	1899	270	14395	571	34687	43562	53956	53797	21899	42988	34451	29340	31215	41620	22982	35518	51181	770	39787	55021	47042	3896	54975	42449	46395	47192	973	13556	48556	54134	52615	13494	1905	1626	16035	16137	53969	19222	38525	42924	47377	2838	55116	42637	49958	46637	53175	47471	3920	972	48763	52743	2837	54974	42448	53176	47102	47047	4231	15596	48798	54867	38056	26790	19370	26322	31193	3984	47752	29840	44309	26066	44273	16105	34728	3985	10729	47843	15921	14886	36008	35419	36556	35126	26387	19257	50998	49856	41058	16822	22392	877	34929	21753	32865	37117	36800	36849	28041	27404	46156	46265	30780	823	51120	32111	20951	13428	49951	52606	53385	41104	17035	40273	40292	45165	46129	46197	40328	45558	24634	44908	50950	46039	35402	35865	35752	18424	41585	12816	40371	40356	7337	46152	46098	7336	40281	40284	16540	27400	18890	36167	46407	27342	51667	34258	14347	26064	14348	17672	40293	16519	33601	8583	27642	30703	32229	29069	24783	51321	53696	8327	49547	41086	30932	9528	40301	40280	16570	14748	21732	52488	16919	45489	47789	18804	45043	45393	16879	4438	54317	53255	4230	50669	47746	30581	7077	27290	27289	35301	26097	47502	28490	39111	36294	47240	47852	44640	47416	2839	48339	3683	47239	52993	47512	54198	51184	44804	47276	37985	37155	55066	44926	40964	6495	51790	5870	51185	54048	5089	13271	55010	47984	44641	47506	33123	47432	6633	5817	6950	5838	46324	39633	46325	43081	37506	43082	40765	38113	38989	38919"), "\\s+")[[1]]))
+
 select_events(db,tab="Clinical001", columns = c("patid", "eventdate", "medcode"),
-              where = "medcode %in% .(diabetes_codes$medcode) & eventdate<'2006-01-01'&eventdate>='2005-01-01'")
+              where = "medcode %in% .(ImmuneMed)")
+
+          #find ImmuneMed in prodcode
+          SelImmuneMed = select_events(db,tab="Therapy001", columns = '*',
+                                       where = "prodcode %in% .(ImmuneMed)")
+          countIMP =  nrow(SelImmuneMed)
+          UniqueIMP = length(unique(SelImmuneMed$patid))
+          
+          #find parkinsoncodes among medcodes
+          SelParkinsoncodes = select_events(db,tab="Clinical001", columns = '*',
+                                            where = "medcode %in% .(Parkinsoncodes)")
+          countPP = nrow(SelParkinsoncodes)
+          UniquePP = length(unique(SelParkinsoncodes$medcode))
+          
+          #Calculate drug duration * dose *
+          UsedMed <- SelImmuneMed %>% 
+            mutate(MedMultiplication = ndd*numdays)
+          
+         
 
       # sqldf("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode > 500 AND medcode<1000 ", connection=db)
       # medlist = 180:200
@@ -75,20 +102,20 @@ select_events(db,tab="Clinical001", columns = c("patid", "eventdate", "medcode")
       # expand_string("SELECT patid, eventdate, medcode from Clinical001 WHERE medcode in .(cancer_codes1)")
 
 
-Asthma_codes <- clinical_codes[clinical_codes$list=="Asthma",]
-q <- select_events(db,tab="Clinical001",columns=c("patid","eventdate","medcode"),
-                   where="medcode %in% .(Asthma_codes$medcode)",
-                   sql_only=TRUE)
-temp_table(db,tab_name="Asthma",select_query =q)
-head(db,temp=TRUE)
-head(db,table="Asthma")
+# Asthma_codes <- clinical_codes[clinical_codes$list=="Asthma",]
+# q <- select_events(db,tab="Clinical001",columns=c("patid","eventdate","medcode"),
+#                    where="medcode %in% .(Asthma_codes$medcode)",
+#                    sql_only=TRUE)
+# temp_table(db,tab_name="Asthma",select_query =q)
+# head(db,temp=TRUE)
+# head(db,table="Asthma")
 
-sqldf("SELECT patid, practid, gender, yob, deathdate from Patient001 WHERE gender IS NOT NULL LIMIT 6",
-      connection=db)
-
-medcodes1<- 1:5
-practice<- 255
-expand_string("SELECT * FROM clinical001 WHERE practid == .(practice)")
+# sqldf("SELECT patid, practid, gender, yob, deathdate from Patient001 WHERE gender IS NOT NULL LIMIT 6",
+#       connection=db)
+# 
+# medcodes1<- 1:5
+# practice<- 255
+# expand_string("SELECT * FROM clinical001 WHERE practid == .(practice)")
 
         # wrap_sql_query(-
         # "SELECT * FROM clinical001 WHERE practid == # 1 AND medcodes in # 2",practice,medcodes1)
@@ -96,25 +123,17 @@ expand_string("SELECT * FROM clinical001 WHERE practid == .(practice)")
 ##3.2
 
 first_DM<- first_events(db,tab="Clinical001", columns=c("patid", "eventdate", "medcode"),
-                         where="medcode %in% .(diabetes_codes$medcode)")
+                         where="medcode %in% .(Parkinsoncodes)")
 last_DM<- last_events(db,tab="Clinical001", columns=c("patid", "eventdate", "medcode"),
-                       where="medcode %in% .(diabetes_codes$medcode)")
+                       where="medcode %in% .(Parkinsoncodes)")
 head(first_DM)
 head(last_DM)
-
-
-###########
-# Runs perfectly fine until here. 
-
-# Error in .Call("dplyr_bind_rows_", PACKAGE = "dplyr", dots, id) : 
-#   "dplyr_bind_rows_" not available for .Call() for package "dplyr"
-###########
 
 
 ##3.3.1
 registered_patients<- select_by_year(db=db, tables="Patient001",
                       columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
-                      where="crd < STARTDATE", year_range=c(2008 : 2012), year_fn =standard_years, first_events)
+                      where="crd < STARTDATE", year_range=c(1900 : 2012),year_fn =standard_years, first_events)
 
 str(registered_patients)
 
@@ -122,9 +141,10 @@ table(registered_patients$year)
 
 incident_cases<- select_by_year(db=db, tables=c("Clinical001", "Referral001"),
                                   columns=c("patid", "eventdate", "medcode"),
-                                  where="medcode %in% .(diabetes_codes$medcode) & eventdate <= ENDDATE",
-                                  year_range=c(2008 : 2012), year_fn=standard_years, selector_fn =first_events)
+                                  where="medcode %in% .(Parkinsoncodes) & eventdate <= ENDDATE",
+                                  year_range=c(1900: 2012), year_fn=standard_years, selector_fn =first_events)
 str(incident_cases)
+table(incident_cases$year)
 
 ## All patientsare kept (equivalentto merge(all.x= TRUE))
 prevalence_dat<- left_join(registered_patients, incident_cases)
@@ -133,6 +153,7 @@ incident_cases%>% group_by(patid,year) %>% arrange(eventdate)%>% distinct() %>% 
 
 prevalence_dat<- prev_terms(prevalence_dat)
 totals<- prev_totals(prevalence_dat)
+#Prevalence and incidence of Parkinson from 1900 to 2012
 totals$prevalence$year_counts
 totals$incidence$year_counts
 
@@ -186,7 +207,7 @@ exact_controls3 <- get_matches(cases=filter(cohort2, case == 1),
                               diagnosis_date="eventdate")
 
 consultation_dir<- "~/R/rEHR_testing"
-flat_files(db,out_dir=consultation001_dir,file_type="csv")
+flat_files(db,out_dir=consultation_dir,file_type="csv")
 index_controls<- match_on_index(cases=filter(cohort2,case == 1),
                                control_pool=filter(cohort2, case == 0),
                                index_var="eventdate",
@@ -231,8 +252,18 @@ inc_1<- cut_tv(tv_test,start,end, stage_1,id_var=id, disease_stage, on_existing 
 inc_1 <- cut_tv(inc_1,start,end, stage_2,id_var=id, disease_stage, on_existing ="inc")
 head(inc_1)
 
-## Chainingcombinationsof the above using %>% library(dplyr) tv_test%>% cut_ tv(start,end, drug_1,id_ var=id, drug_1_state)%>% cut_ tv(start,end, drug_2,id_ var=id, drug_2_state)%>% cut_ tv(start,end, drug_3_start,id_ var=id, drug_3_state)%>% cut_ tv(start,end, drug_3_stop,id_ var=id, drug_3_state)%>% cut_ tv(start,end, stage_1,id_ var=id, disease_stage, on_ existing="inc") %>%
-cut_tv(start,end, stage_2,id_var=id, disease_stage, on_existing="inc") %>%head
+## Chainingcombinationsof the above using %>% 
+library(dplyr) 
+tv_test%>% 
+  cut_tv(start,end, drug_1,id_var=id, drug_1_state)%>% 
+  cut_tv(start,end, drug_2,id_var=id, drug_2_state)%>% 
+  cut_tv(start,end, drug_3_start,id_var=id, drug_3_state)%>% 
+  cut_tv(start,end, drug_3_stop,id_var=id, drug_3_state)%>% 
+  cut_tv(start,end, stage_1,id_var=id, disease_stage, 
+         on_existing="inc") %>%
+  cut_tv(start,end, stage_2,id_var=id, disease_stage, 
+       on_existing="inc") %>%
+  head
 
 ## Exampleconstructionof a clinicalcode list
 def <- MedicalDefinition(
