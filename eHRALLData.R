@@ -48,7 +48,7 @@ ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
 import_CPRD_data(db, data_dir = ehr_path,         
-                 filetypes = c("Additional_001","Clinical_001","Clinical_002","Clinical_003","Consultation_001","Consultation_002",,"Consultation_003", "Immunisation_001",
+                 filetypes = c("Additional_001","Clinical_001","Clinical_002","Clinical_003","Consultation_001","Consultation_002","Consultation_003", "Immunisation_001",
                                "Patient_001", "Practice_001", "Referral_001", "Therapy_001", "Therapy_002", "Therapy_003", "Therapy_004", "Test_001","Test_002","Test_003","Test_004","Test_005","Test_006", "Staff_001"),
                  dateformat = "%d/%m/%Y",
                  yob_origin = 1800,
@@ -80,7 +80,7 @@ SelImmuneMed = select_events(db,tab="Therapy001", columns = '*',
 countIMP =  nrow(SelImmuneMed)
 UniqueIMP = length(unique(SelImmuneMed$patid))
 
-#find parkinsoncodes among medcodes
+#find parkinsoncodes amongst medcodes
 SelParkinsoncodes = select_events(db,tab="Clinical_002", columns = '*',
                                   where = "medcode %in% .(Parkinsoncodes)")
 countPP = nrow(SelParkinsoncodes)
