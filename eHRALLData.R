@@ -18,16 +18,16 @@
 # ##############
 # 
 # ############## INSTALL THESE PACKAGES FOR PROPER FUNCTIONALITY
-# install.packages("digest")
-# packageurl <- "https://cran.r-project.org/src/contrib/Archive/dplyr/dplyr_0.5.0.tar.gz"  ##version0.5.0
-# install.packages(packageurl, repos = NULL, type="source")
-# ##install.packages("dplyr") ##version0.7.4
-# packageurldevtools <- "https://cran.r-project.org/src/contrib/Archive/devtools/devtools_1.12.0.tar.gz"
-# install.packages(packageurldevtools, repos = NULL, type="source")
-# library(devtools)
-# library(dplyr)
-# install_github("rOpenHealth/rEHR") 
-# library(rEHR)
+install.packages("digest")
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/dplyr/dplyr_0.5.0.tar.gz"  ##version0.5.0
+install.packages(packageurl, repos = NULL, type="source")
+##install.packages("dplyr") ##version0.7.4
+packageurldevtools <- "https://cran.r-project.org/src/contrib/Archive/devtools/devtools_1.12.0.tar.gz"
+install.packages(packageurldevtools, repos = NULL, type="source")
+library(devtools)
+library(dplyr)
+install_github("rOpenHealth/rEHR")
+library(rEHR)
 # ##############
 
 
@@ -48,47 +48,71 @@ ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
 import_CPRD_data(db, data_dir = ehr_path,         
-                 filetypes = c("Additional_001","Clinical_001","Clinical_002","Clinical_003","Consultation_001","Consultation_002","Consultation_003", "Immunisation_001",
-                               "Patient_001", "Practice_001", "Referral_001", "Therapy_001", "Therapy_002", "Therapy_003", "Therapy_004", "Test_001","Test_002","Test_003","Test_004","Test_005","Test_006", "Staff_001"),
+                 filetypes = c("prodcodes"),
                  dateformat = "%d/%m/%Y",
                  yob_origin = 1800,
                  regex = "PD_immunosup_Extract",
                  recursive = TRUE)
+                #"Additional_001","Clinical_001","Clinical_002","Clinical_003","Consultation_001","Consultation_002","Consultation_003", "Immunisation_001",
+                #"Patient_001", "Practice_001", "Referral_001", "Therapy_001", "Therapy_002", "Therapy_003", "Therapy_004", "Test_001","Test_002","Test_003","Test_004","Test_005","Test_006", "Staff_001"),
+
 ## Individual files can also be added:
-add_to_database(db, files = system.file("ehr_data", "productandmedicalcodelists.txt",
+add_to_database(db, files = system.file("ehr_data", "prodcodes.txt",
                                         package = "rEHR"),
-                table_name = c("ProdandMedcodelist", dateformat = "%b-%d"))
+                table_name = c("Productcodelists"))
 
 ## Use the overloaded`head` function to view a list of
 ## tables or the head of individual tables:
 head(db)
-head(db, table="Clinical_002")
+head(db, table="Clinical_All_Cut")
 
 ##3.1
 #cancer_codes <- clinical_codes[clinical_codes$list=="Cancer",]
 #diabetes_codes <- clinical_codes[clinical_codes$list=="Diabetes",]
 Parkinsoncodes = as.numeric(unlist(strsplit(c("1691 4321 8956	9509 10718 14912 16860 17004 53655 59824 86062 96860 101090"), "\\s+")[[1]]))
-ParkinsonExclusioncodes = as.numeric(unlist(strsplit(c("19478	24001	26181	33544	51105	52589	72879	97170	100128"))))
+ParkinsonExclusioncodes = as.numeric(unlist(strsplit(c("19478	24001	26181	33544	51105	52589	72879	97170	100128"), "\\s+")[[1]]))
 ImmuneMed = as.numeric(unlist(strsplit(c("23850	6882	50996	52833	42273	30495	39115	13320	55773	53869	54982	36792	671	451	32101	43077	34816	41670	19072	12339	26261	1899	270	14395	571	34687	43562	53956	53797	21899	42988	34451	29340	31215	41620	22982	35518	51181	770	39787	55021	47042	3896	54975	42449	46395	47192	973	13556	48556	54134	52615	13494	1905	1626	16035	16137	53969	19222	38525	42924	47377	2838	55116	42637	49958	46637	53175	47471	3920	972	48763	52743	2837	54974	42448	53176	47102	47047	4231	15596	48798	54867	38056	26790	19370	26322	31193	3984	47752	29840	44309	26066	44273	16105	34728	3985	10729	47843	15921	14886	36008	35419	36556	35126	26387	19257	50998	49856	41058	16822	22392	877	34929	21753	32865	37117	36800	36849	28041	27404	46156	46265	30780	823	51120	32111	20951	13428	49951	52606	53385	41104	17035	40273	40292	45165	46129	46197	40328	45558	24634	44908	50950	46039	35402	35865	35752	18424	41585	12816	40371	40356	7337	46152	46098	7336	40281	40284	16540	27400	18890	36167	46407	27342	51667	34258	14347	26064	14348	17672	40293	16519	33601	8583	27642	30703	32229	29069	24783	51321	53696	8327	49547	41086	30932	9528	40301	40280	16570	14748	21732	52488	16919	45489	47789	18804	45043	45393	16879	4438	54317	53255	4230	50669	47746	30581	7077	27290	27289	35301	26097	47502	28490	39111	36294	47240	47852	44640	47416	2839	48339	3683	47239	52993	47512	54198	51184	44804	47276	37985	37155	55066	44926	40964	6495	51790	5870	51185	54048	5089	13271	55010	47984	44641	47506	33123	47432	6633	5817	6950	5838	46324	39633	46325	43081	37506	43082	40765	38113	38989	38919"), "\\s+")[[1]]))
 
-select_events(db,tab="Clinical_002", columns = c("patid", "eventdate", "medcode"),
+select_events(db,tab="Clinical_All_Cut", columns = c("patid", "medcode"),
               where = "medcode %in% .(ImmuneMed)")
 
+########
 #find ImmuneMed in prodcode
-SelImmuneMed = select_events(db,tab="Therapy001", columns = '*',
+SelImmuneProducts = select_events(db,tab="Therapy_All_Cut", columns = '*',
                              where = "prodcode %in% .(ImmuneMed)")
-countIMP =  nrow(SelImmuneMed)
-UniqueIMP = length(unique(SelImmuneMed$patid))
+SelImmuneProducts <- tbl_df(SelImmuneProducts)
+countIMP =  nrow(SelImmuneProducts)
+nImmuneProducts = unique(SelImmuneProducts$prodcode)
 
-#find parkinsoncodes amongst medcodes
-SelParkinsoncodes = select_events(db,tab="Clinical_002", columns = '*',
-                                  where = "medcode %in% .(Parkinsoncodes)")
-countPP = nrow(SelParkinsoncodes)
-UniquePP = length(unique(SelParkinsoncodes$medcode))
+DrugInfo <- select_events(db, tab="prodcodes", columns = '*')
+DrugInfo <- tbl_df(DrugInfo)
+#ADD PRODUCT NAME AND STRENGTH TO THERAPY FILE
+MedCalculation <- left_join(SelImmuneProducts, DrugInfo)
+MedCalculation <- tbl_df(MedCalculation)
+
 
 #Calculate drug duration * dose *
-UsedMed <- SelImmuneMed %>% 
+UsedMed <- SelImmuneProducts %>% 
   mutate(MedMultiplication = ndd*numdays)
+
+
+
+##########
+#find parkinsoncodes amongst medcodes
+SelParkinsoncodes = select_events(db,tab="Clinical_All_Cut", columns = '*',
+                                  where = " %in% .(Parkinsoncodes)")
+SelParkinsoncodes <- tbl_df(SelParkinsoncodes)
+countPP = nrow(SelParkinsoncodes)
+nParkinsoncodes = length(unique(SelParkinsoncodes$medcode))
+
+#Number of patients per medcode
+ppm <- tbl_df(patients_per_medcode(db, clinical_table = "Clinical_All_Cut", patid = "patid", medcode = "Medcode"))
+#patients per Parkinsoncode and exclusioncodes
+ppim <- filter(ppm, ppm$medcode %in% Parkinsoncodes)
+ppimex <- filter(ppm, ppm$medcode %in% ParkinsonExclusioncodes)
+sppim <- ppim[order(ppim$patients),]
+
+
 
 
 
