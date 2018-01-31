@@ -48,7 +48,7 @@ ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
 import_CPRD_data(db, data_dir = ehr_path,         
-                 filetypes = c("prodcodes"),
+                 filetypes = c("Therapy_All_Cut", "Clinical_All_Cut", "Patient_001","prodcodes"),
                  dateformat = "%d/%m/%Y",
                  yob_origin = 1800,
                  regex = "PD_immunosup_Extract",
@@ -92,7 +92,7 @@ MedCalculation <- tbl_df(MedCalculation)
 
 
 #Calculate drug duration * dose *
-UsedMed <- SelImmuneProducts %>% 
+MedCalculation %>% 
   mutate(MedMultiplication = ndd*numdays)
 
 
