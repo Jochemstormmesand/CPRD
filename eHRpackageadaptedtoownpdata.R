@@ -48,16 +48,17 @@ ehr_path <- dirname(system.file("ehr_data", "ehr_Clinical.txt",  #MAKE SURE THAT
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
 import_CPRD_data(db, data_dir = ehr_path,         
-     filetypes = c("Clinical001", "Consultation001","Patient001", "Practice001", 
-                   "Referral001", "Therapy001", "Test001", "Staff001"),
+     filetypes = c("Clinical001", "Patient001","Therapy001"),
+     #"Clinical001", "Consultation001","Patient001", "Practice001", 
+     #"Referral001", "Therapy001", "Test001", "Staff001"
      dateformat = "%d/%m/%Y",
      yob_origin = 1800,
      regex = "Sample",
      recursive = TRUE)
 ## Individual files can also be added:
-            add_to_database(db, files = system.file("ehr_data", "productandmedicalcodelists.txt",
+            add_to_database(db, files = system.file("ehr_data", "ehr_Clinical.txt",
                      package = "rEHR"),
-                     table_name = c("ProdandMedcodelist", dateformat = "%b-%d"))
+                     table_name = "ehrClinical", dateformat = "%d/%m/%Y")
 
 ## Use the overloaded`head` function to view a list of
 ## tables or the head of individual tables:
