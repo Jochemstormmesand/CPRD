@@ -56,8 +56,8 @@ library(rEHR)
 ##2
 #Required files
   # PD_immunosup_Extract_ "Common_Dosages","Prodcodes_Cut", "Referral_001", "Patient_001", "Clinical_001_Cut", "Clinical_002_Cut", "Clinical_003_Cut", "Clinical_004_Cut", "Therapy_001_Cut", "Therapy_002_Cut", "Therapy_003_Cut", "Therapy_004_Cut"
-  # All_ "MedicalReadcodes", "Drugproductreadcodes"
-  # prod_pd_ "treat"
+  # "MedicalReadcodes", "Drugproductreadcodes"
+  # "prod_pd_treat"
 ## Use simulated ehr files supplied with the package to build database
 ehr_path <- dirname(system.file("ehr_data", "PD_immunosup_Extract_Clinical_All_Dates_Cut.txt",  #MAKE SURE THAT TEXT FILES ARE STORED IN C:\Users\Stormezand\Documents\R\win-library\3.3\rEHR\ehr_data 
                                 package = "rEHR"))
@@ -65,10 +65,10 @@ ehr_path <- dirname(system.file("ehr_data", "PD_immunosup_Extract_Clinical_All_D
 db <- database(tempfile(fileext = ".sqlite"))
 ## Import multiple data files into the database
 import_CPRD_data(db, data_dir = ehr_path,         
-                 filetypes = c("treat"),
+                 filetypes = c("Common_Dosages","Prodcodes_Cut", "Referral_001", "Patient_001", "Clinical_001_Cut3", "Clinical_002_Cut3", "Clinical_003_Cut3", "Therapy_001_Cut2", "Therapy_002_Cut2", "Therapy_003_Cut2", "Therapy_004_Cut2", "MedicalReadcodes", "Drugproductreadcodes", "prod_pd_treat"),
                  dateformat = "%d/%m/%Y",
                  yob_origin = 1800,
-                 regex = "prod_pd",
+                 regex = "PD_immunosup_Extract",
                  recursive = TRUE)
 
 ## Individual files can also be added:
@@ -93,29 +93,29 @@ import_CPRD_data(db, data_dir = ehr_path,
 ####
 # To avoid Memory exhaust:
 # load extremely large text files into database: first load separated text files and merge them in SQL
-Clinical_001 <- tbl_df(select_events(db,tab="Clinical_001_Cut", columns = c("patid", "eventdate", "medcode")))
-Clinical_002 <- tbl_df(select_events(db,tab="Clinical_002_Cut", columns = c("patid", "eventdate", "medcode")))
-Clinical_003 <- tbl_df(select_events(db,tab="Clinical_003_Cut", columns = c("patid", "eventdate", "medcode")))
+Clinical_001 <- tbl_df(select_events(db,tab="Clinical_001_Cut3", columns = '*'))
+Clinical_002 <- tbl_df(select_events(db,tab="Clinical_002_Cut3", columns = '*'))
+Clinical_003 <- tbl_df(select_events(db,tab="Clinical_003_Cut3", columns = '*'))
+dbRemoveTable(db, "Clinical_001_Cut3")
+dbRemoveTable(db, "Clinical_002_Cut3")
+dbRemoveTable(db, "Clinical_003_Cut3")
 Clinical_All <- rbind(Clinical_001, Clinical_002, Clinical_003)
 rm(Clinical_001, Clinical_002, Clinical_003)
-dbRemoveTable(db, "Clinical_001_Cut")
-dbRemoveTable(db, "Clinical_002_Cut")
-dbRemoveTable(db, "Clinical_003_Cut")
 dbWriteTable(db, "Clinical_All", Clinical_All, append = TRUE )
 rm(Clinical_All)
-Therapy_001 <- tbl_df(select_events(db,tab="Therapy_001_Cut", columns = '*'))
-Therapy_002 <- tbl_df(select_events(db,tab="Therapy_002_Cut", columns = '*'))
-Therapy_003 <- tbl_df(select_events(db,tab="Therapy_003_Cut", columns = '*'))
-Therapy_004 <- tbl_df(select_events(db,tab="Therapy_004_Cut", columns = '*'))
+Therapy_001 <- tbl_df(select_events(db,tab="Therapy_001_Cut2", columns = '*'))
+Therapy_002 <- tbl_df(select_events(db,tab="Therapy_002_Cut2", columns = '*'))
+Therapy_003 <- tbl_df(select_events(db,tab="Therapy_003_Cut2", columns = '*'))
+Therapy_004 <- tbl_df(select_events(db,tab="Therapy_004_Cut2", columns = '*'))
+dbRemoveTable(db, "Therapy_001_Cut2")
+dbRemoveTable(db, "Therapy_002_Cut2")
+dbRemoveTable(db, "Therapy_003_Cut2")
+dbRemoveTable(db, "Therapy_004_Cut2")
 Therapy_All <- rbind(Therapy_001, Therapy_002)
 rm(Therapy_001, Therapy_002)
-dbRemoveTable(db, "Therapy_001_Cut")
-dbRemoveTable(db, "Therapy_002_Cut")
 dbWriteTable(db, "Therapy_All", Therapy_All, append =TRUE)
 Therapy_All2<- rbind(Therapy_003, Therapy_004)
 rm(Therapy_003, Therapy_004)
-dbRemoveTable(db, "Therapy_003_Cut")
-dbRemoveTable(db, "Therapy_004_Cut")
 dbWriteTable(db, "Therapy_All", Therapy_All2, append = TRUE)
 rm(Therapy_All, Therapy_All2)
 ####
