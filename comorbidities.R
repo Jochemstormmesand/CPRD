@@ -46,45 +46,30 @@ SelParkinsonprodcodes <- tbl_df(select_events(db, tab= "Therapy_001_Cut2", colum
 
 
 
-#Alternative method to avoid semi-join. 
+#Alternative method to avoid WHERE IN .
 all_diseases <- tbl_df(sqldf("SELECT * FROM Clinical_All", connection = db))
-three_and_two_marker <- tbl_df(sqldf("SELECT patid FROM three_and_two")) %>% mutate(marker = 1)
-all_diseases_IS_patients <- left_join(all_diseases, three_and_two_marker)
-all_diseases_IS_patients <- tbl_df(sqldf("SELECT * FROM all_diseases_IS_patients WHERE marker ==1 AND constype ==3"))
+three_and_two_marker <- tbl_df(sqldf("SELECT DISTINCT patid FROM three_and_two")) #select All patids of patients that are properly on IS
+all_diseases_IS_patients <- semi_join(all_diseases, three_and_two_marker) #select from ALL clinical rows the ones where patid of patients with actual IS
+all_diseases_IS_patients <- tbl_df(sqldf("SELECT * FROM all_diseases_IS_patients WHERE constype ==3"))
 IS_before_PD_marker <- tbl_df(sqldf("SELECT patid FROM IS_before_PD")) %>% mutate(marker = 1)
-other_diseases_PD_patients <- left_join(all_diseases, IS_before_PD_marker)
-other_diseases_PD_patients <- tbl_df(sqldf("SELECT * FROM other_diseases_PD_patients WHERE marker ==1 AND constype ==3"))
-diseases_matching_IS <- left_join(all_diseases, three_and_two_marker)
-diseases_matching_IS <- tbl_df(sqldf("SELECT * FROM diseases_matching_IS WHERE marker ==1 & constype ==3 & consid IN three_and_two$consid"))
+other_diseases_PD_patients <- semi_join(all_diseases, IS_before_PD_marker)
+other_diseases_PD_patients <- tbl_df(sqldf("SELECT * FROM other_diseases_PD_patients WHERE constype ==3"))
+diseases_matching_IS <- semi_join(all_diseases, three_and_two, by = c("patid", "consid"))
+diseases_matching_IS <- tbl_df(sqldf("SELECT * FROM diseases_matching_IS WHERE constype ==3"))
 
-all_diseases_IS_patients <- tbl_df(select_events(db, tab = "Clinical_All", columns = '*', where = "patid %in% .(three_and_two_unique$patid) & constype == 3"))
-all_diseases_IS_patients <- tbl_df(left_join(all_diseases_IS_patients, All_medcodes))
-other_diseases_PD_patients <- tbl_df(select_events(db, tab = "Clinical_All_Sample", columns = '*', where = "patid %in% .(IS_before_PD$patid) & constype == 3")) # maybe also take out the  PD codes by saying & !medcode %in% .(Parkinsoncodes)
-other_diseases_PD_patients <- tbl_df(left_join(other_diseases_PD_patients, All_medcodes))
-diseases_matching_IS <- tbl_df(select_events(db, tab = "Clinical_All_Sample", columns = '*', where = "patid %in% .(three_and_two$patid) & consid %in% .(three_and_two$consid) & constype == 3"))
-diseases_matching_IS <- tbl_df(left_join(diseases_matching_IS, All_medcodes))
-diseases_matching_IS <- tbl_df(left_join(diseases_matching_IS, three_and_two))
-diseases_matching_IS <- diseases_matching_IS %>% select(-medduration, -cum_duration, -qty, -ndd, -unit, -cum_ndd0, -enttype, -staffid, -episode, -adid)
-nr_of_diseases_PP <- tbl_df(sqldf("SELECT patid, consid, COUNT(DISTINCT medcode) AS nr_of_diseases FROM diseases_matching_IS GROUP BY patid"))
+# all_diseases_IS_patients <- tbl_df(select_events(db, tab = "Clinical_All", columns = '*', where = "patid %in% .(three_and_two_unique$patid) & constype == 3"))
+# all_diseases_IS_patients <- tbl_df(left_join(all_diseases_IS_patients, All_medcodes))
+# other_diseases_PD_patients <- tbl_df(select_events(db, tab = "Clinical_All_Sample", columns = '*', where = "patid %in% .(IS_before_PD$patid) & constype == 3")) # maybe also take out the  PD codes by saying & !medcode %in% .(Parkinsoncodes)
+# other_diseases_PD_patients <- tbl_df(left_join(other_diseases_PD_patients, All_medcodes))
+# diseases_matching_IS <- tbl_df(select_events(db, tab = "Clinical_All_Sample", columns = '*', where = "patid %in% .(three_and_two$patid) & consid %in% .(three_and_two$consid) & constype == 3"))
+# diseases_matching_IS <- tbl_df(left_join(diseases_matching_IS, All_medcodes))
+# diseases_matching_IS <- tbl_df(left_join(diseases_matching_IS, three_and_two))
+# diseases_matching_IS <- diseases_matching_IS %>% select(-medduration, -cum_duration, -qty, -ndd, -unit, -cum_ndd0, -enttype, -staffid, -episode, -adid)
+# nr_of_diseases_PP <- tbl_df(sqldf("SELECT patid, consid, COUNT(DISTINCT medcode) AS nr_of_diseases FROM diseases_matching_IS GROUP BY patid"))
 
-#also find the comorbidities for the patients that have PD.
-all_diseases_IS_patients <- tbl_df(select_events(db, tab = "Clinical_All", columns = '*', where = "patid %in% .(three_and_two$patid)"))
-all_diseases_IS_patients <- tbl_df(left_join(all_diseases_IS_patients, All_medcodes))
-other_diseases_PD_patients <- tbl_df(select_events(db, tab = "Clinical_All", columns = '*', where = "patid %in% .(IS_before_PD$patid)"))
-other_diseases_PD_patients <- tbl_df(left_join(other_diseases_PD_patients, All_medcodes))
-diseases_matching_IS <- tbl_df(select_events(db, tab = "Clinical_All", columns = '*', where = "patid %in% .(three_and_two$patid) & consid %in% .(three_and_two$consid) & constype ==3"))
-diseases_matching_IS <- tbl_df(left_join(diseases_matching_IS, All_medcodes))
-diseases_matching_IS <- tbl_df(left_join(diseases_matching_IS, three_and_two))
-diseases_matching_IS <- diseases_matching_IS %>% select(-medduration, -cum_duration, -qty, -ndd, -unit, -cum_ndd0, -enttype, -staffid, -episode, -adid)
-nr_of_diseases_PP <- tbl_df(sqldf("SELECT patid, consid, COUNT(DISTINCT medcodes) AS nr_of_diseases FROM Clinical_All WHERE  GROUP BY patid ORDER BY nr_of_diseases DESC"))
 table(nr_of_diseases_PP$nr_of_diseases)
 
-#working with the info of clinicalcodes.org.
-#Figure out how to properly work with lists.
 
-colnames(diseases_matching_IS)[9] <- "code"
-colnames(all_diseases_IS_patients)[13] <- "code"
-colnames(other_diseases_PD_patients)[13] <- "code"
 # clean up the large list;
     # All_disease_codes <- All_disease_codes[-1]
     # All_disease_codes[[5]] <- NULL
@@ -92,7 +77,9 @@ colnames(other_diseases_PD_patients)[13] <- "code"
 #select every 1st column through all elements of list
     # lapply(All_disease_codes, "[[", 1)
 
-
+#############################
+#Clinicalcodes.org
+#############################
 All_disease_codes2 <- tbl_df(All_disease_codes %>%
   lapply(function(x) mutate_each(x, funs('as.character'))) %>%
   bind_rows() %>%
@@ -132,8 +119,8 @@ setwd("~/Brain and Cognitive Sciences/Research Internship 2/CPRD/All")
 temp = list.files(pattern="*.csv")
 options(datatable.fread.datatable=FALSE)
 myfiles <- lapply(temp, fread)
-for (i in 1:29) {
-  names(myfiles) <- temp[1:29]
+for (i in 1:34) {
+  names(myfiles) <- temp[1:34]
 }
 
 temp[1] <- "Alcohol_problems"
@@ -177,9 +164,10 @@ newmyfiles <- rbindlist(myfiles)
 
 #
 IS_patients_linked_comorbidities <- left_join(diseases_matching_IS,newmyfiles)
-IS_patients_linked_comorbidities <- IS_patients_linked_comorbidities %>% select(-textid, -practid, -consid, -constype, -sysdate)
+IS_patients_linked_comorbidities%>% group_by(patid,eventdate, medcode) %>% arrange(eventdate)%>% distinct() %>% ungroup-> IS_patients_linked_comorbidities
+#IS_patients_linked_comorbidities <- IS_patients_linked_comorbidities %>% select(-textid, -practid, -consid, -constype, -sysdate)
 IS_patients_other_comorbidities <- left_join(all_diseases_IS_patients, newmyfiles)
-IS_patients_other_comorbidities <- IS_patients_other_comorbidities %>% select(-textid, -practid, -consid, -constype, -sysdate, -enttype, -staffid, -episode, -adid)
+#IS_patients_other_comorbidities <- IS_patients_other_comorbidities %>% select(-textid, -practid, -consid, -constype, -sysdate, -enttype, -staffid, -episode, -adid)
 PD_patients_comorbidities <- left_join(other_diseases_PD_patients, newmyfiles)
-PD_patients_comorbidities <- PD_patients_comorbidities %>% select(-textid, -practid, -consid, -constype, -sysdate, -enttype, -staffid, -episode, -adid)
+#PD_patients_comorbidities <- PD_patients_comorbidities %>% select(-textid, -practid, -consid, -constype, -sysdate, -enttype, -staffid, -episode, -adid)
 #

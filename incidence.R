@@ -1,9 +1,21 @@
 #PD incidence
+#Required to avoid memory exhaust due to WHERE IN clause. 
+Patient_IS2 <- tbl_df(sqldf("SELECT * FROM Patient_001", connection = db))
+Patient_IS2 <- semi_join(Patient_IS2, three_and_two_marker)
+dbWriteTable(db, "Patient_IS", Patient_IS2, append = TRUE)
+rm(Patient_IS2)
+Clinical_PD2 <- tbl_df(sqldf("SELECT * FROM Clinical_All", connection = db))
+Clinical_PD2 <- semi_join(Clinical_PD2, IS_before_PD, by = "medcode")
+dbWriteTable(db, "Clinical_PD", Clinical_PD2, append = TRUE)
+rm(Clinical_PD2)
+Referral_PD2 <- tbl_df(sqldf("SELECT * FROM Referral_001", connection = db))
+Referral_PD2 <- semi_join(Referral_PD2, IS_before_PD, by = "medcode")
+dbWriteTable(db, "Referral_PD", Referral_PD2, append = TRUE)
+rm(Referral_PD2)
 
-Patient_IS <- tbl_df(select_events(db, tab = "Patient_001", columns = '*', where = "patid %in% .(three_and_two$patid)"))
-dbWriteTable(db, "Patient_IS2", Patient_IS, append = TRUE)
+#Finding the number of registered patients per year, selecting only the patients that are on IS
 registered_IS_patients <- select_by_year(db=db, 
-                                         tables="Patient_IS2",
+                                         tables="Patient_IS",
                                          columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
                                          where="crd < STARTDATE", 
                                          year_range=c(1995 : 2015), 
@@ -13,11 +25,6 @@ registered_patients <- select_by_year(db=db,
                                       columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
                                       where="crd < STARTDATE", 
                                       year_range=c(1995 : 2015),year_fn =standard_years, first_events)
-#try the following:
-where_q <- "crd < STARTDATE & patid %in% .(three_and_two$patid)"
-registered_IS_patients <- select_by_year(db=db, tables="Patient_001",
-                                      columns=c("patid", "practid", "gender", "yob", "crd", "tod","deathdate"),
-                                      where=where_q, year_range=c(1995 : 2015),year_fn =standard_years, first_events)
 
 
 
@@ -33,9 +40,13 @@ table(registered_IS_patients$year)
 table(registered_IS_patients$gender) #adds over the years though. So if a male is there for longer than a female, this will affect the counting...
 table(registered_IS_patients$yob)
 
-incident_cases<- select_by_year(db=db, tables=c("Clinical", "Referral"),
+
+
+#Finding the incident cases of the patients per year, selecting only the rows that have a medcode in IS_before_PD.
+#check whether this is correct: only selected those with "medcode", shouldnt this also include patid or something?
+incident_cases<- select_by_year(db=db, tables=c("Clinical_PD", "Referral_PD"),
                                 columns=c("patid", "eventdate", "medcode"),
-                                where="medcode %in% .(True_PD$medcode) & eventdate <= ENDDATE", #use IS_before_PD
+                                where="eventdate <= ENDDATE", #use IS_before_PD
                                 year_range=c(1995: 2015), year_fn=standard_years, selector_fn =first_events)
 str(incident_cases)
 table(incident_cases$year)
