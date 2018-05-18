@@ -22,58 +22,68 @@ NOW ALL DRUGS AT ONCE, AND IT DOESNT MAKE SENSE FOR FOR EXAMPLE INJECTIONS. SO i
 
 
 ####################
-
-#find duration on each med
-MedCalculation <- MedCalculation %>%
-  mutate(medduration= qty/ndd)
-
-#Calculate cumulative duration via ndd. Grouped per patid, prodcode, restart when ndd =0
-MedCalculation <- MedCalculation %>%
-  mutate(ndd0 = case_when(MedCalculation$ndd > 0 ~ 1,
-                          TRUE ~ 0),
-         try = c(0,diff(ndd0) ==0))
-MedCalculation <- MedCalculation %>% 
-  group_by(patid, prodcode, idx = cumsum(try == 0L)) %>% 
-  mutate(cum_duration = cumsum(medduration),
-         cum_ndd0 = cumsum(ndd0)) %>% 
-  ungroup %>% 
-  select(-idx, -ndd0, - try)
-##################################
-
-#first, SELECT unique patients that have cum_ndd0 > 1 AND cum_duration > 90 to match inclusion criteria. 
-Inclusion_patid1 <- tbl_df(sqldf("SELECT DISTINCT(patid) FROM MedCalculation WHERE cum_duration >= 90 AND cum_ndd0 >1 GROUP BY patid, prodcode"))
-############
-
-#second, NO ndd, so alternative methods needed to calculate duration to find which patids to include. 
-alternative_duration <- tbl_df(sqldf("SELECT * FROM MedCalculation WHERE patid NOT IN (SELECT patid FROM Inclusion_patid1)"))
-alternative_duration <- alternative_duration %>% select(-medduration, -cum_duration, -cum_ndd0)
-alternative_duration <- alternative_duration %>%
-  group_by(patid, prodcode) %>%
-  mutate(counter = row_number(),
-         BETWEEN0=as.numeric(difftime(eventdate,lag(eventdate,1))),BETWEEN1=ifelse(is.na(BETWEEN0),0,BETWEEN0),FIRST=cumsum(as.numeric(BETWEEN1)))%>%
-  select(-BETWEEN0)
-
-#doesn't take gaps into account, so it could be that the 2 consecutive is not correct because of a long gap in between..
-Inclusion_patid2 <- tbl_df(sqldf("SELECT DISTINCT(patid) FROM alternative_duration WHERE BETWEEN1 > 1 AND BETWEEN1 < 8000 AND FIRST >= 90 GROUP BY patid, prodcode"))
-Exclusion_patid2 <- tbl_df(sqldf("SELECT * FROM alternative_duration WHERE patid NOT IN (SELECT patid FROM Inclusion_patid2)"))
-Inclusion_patid3 <- tbl_df(sqldf("SELECT DISTINCT(patid) FROM Exclusion_patid2 WHERE BETWEEN1 >= 8000 AND counter >= 3")) 
-Inclusion_patid4 <- tbl_df(sqldf("SELECT DISTINCT(patid) FROM Exclusion_patid2 WHERE ndd = 0 AND counter >= 3")) 
-#Perhaps also include the patients where ndd is known, but n >=3, between1<8000.. That would include a few more. alhtough there ndd is a little bit lower, it would often add up to a month of prescription.  
-All_Inclusion_patid <- full_join(Inclusion_patid1, Inclusion_patid2)
-All_Inclusion_patid <- full_join(All_Inclusion_patid, Inclusion_patid3)
-All_Inclusion_patid <- full_join(All_Inclusion_patid, Inclusion_patid4)
-
-three_and_two <- tbl_df(sqldf("SELECT * FROM MedCalculation WHERE patid IN (SELECT patid FROM All_Inclusion_patid)"))
-three_and_two_unique <- tbl_df(sqldf("SELECT * FROM three_and_two GROUP BY patid"))
-Excluded <- tbl_df(sqldf("SELECT * FROM MedCalculation WHERE patid NOT IN (SELECT patid FROM All_Inclusion_patid)"))
-Excluded <- Excluded %>% select(-medduration, -cum_duration, -cum_ndd0)
-
-#################################
-# go to incidence script here
-#################################
+  MedCalculation <- MedCalculation %>% 
+    ungroup %>%
+    mutate(Concentration = as.numeric(as.character(numextract(MedCalculation$strength))),
+           unit = letterextract(MedCalculation$strength)) %>%
+    arrange(patid, prodcode, eventdate) %>%
+    select(-textid, -issueseq, -practid) 
+  #Maybe add issueseq, drug and Formulation when needed later strength...?
+  #MedCalculation files filtered on NDD present or not. 
+  
+  #find duration on each med using qty and ndd
+  #Calculate cumulative duration via a cumulative sum of ndd but without qty 
+  #Grouped by patid, prodcode. The summation will restart each time ndd =0
+  MedCalculation <- MedCalculation %>%
+    mutate(medduration = qty/ndd,
+           ndd0 = case_when(MedCalculation$ndd > 0 ~ 1,
+                            TRUE ~ 0),
+           try = c(0,diff(ndd0) ==0))%>% 
+    group_by(patid, prodcode, idx = cumsum(try == 0L)) %>% 
+    mutate(cum_duration = cumsum(medduration),
+           cum_ndd0 = cumsum(ndd0)) %>% ungroup %>% 
+    select(-idx, -ndd0, - try)
+  ##################################
+  
+  #first, SELECT unique patients that have cum_ndd0 > 1 AND cum_duration > 90 to match inclusion criteria. 
+  Inclusion_patid1 <- MedCalculation %>% filter(cum_duration >= 90 & cum_ndd0 >1)%>% distinct(patid)
+  
+  #second, NO ndd, so alternative methods needed to calculate duration to find which patids to include. 
+  alternative_duration <- tbl_df(anti_join(MedCalculation, Inclusion_patid1, by = "patid")) %>% 
+    select(-medduration, -cum_duration, -cum_ndd0) %>%
+    group_by(patid, prodcode) %>%
+    mutate(BETWEEN0=as.numeric(as.period(interval(lag(eventdate,1),eventdate)), unit = "days")) %>% 
+    group_by(idx = cumsum(BETWEEN0 == 0L))%>% 
+    mutate(BETWEEN1=ifelse(is.na(BETWEEN0),0,BETWEEN0))%>%  ungroup()
+  
+  #remove this if line above works. 
+  alternative_duration <- alternative_duration %>% group_by(patid, prodcode,idx = cumsum(BETWEEN1 == 0L)) %>%
+    mutate(FIRST=cumsum(as.numeric(BETWEEN1))) %>% ungroup %>% select(-idx, -BETWEEN0)
+    # mutate(cum_duration = cumsum(medduration),
+    #        cum_ndd0 = cumsum(ndd0)) %>% ungroup %>% 
+    # select(-idx, -ndd0, - try)
+  #same trick as above with the idx...
+  
+  
+  #doesn't take gaps into account, so it could be that the 2 consecutive is not correct because of a long gap in between..
+  Inclusion_patid2 <- alternative_duration %>% filter(BETWEEN1 > 1 & FIRST >= 90) %>% distinct(patid)
+  Inclusion_patid3 <- MedCalculation %>% filter(Drug == "Infliximab"| Drug == "Rituximab" | Drug == "Etanercept"| Drug == "Alemtuzumab" | Drug == "Adalimumab")  %>% distinct(patid)
+  
+  #Perhaps also include the patients where ndd is known, but n >=3, between1<8000.. That would include a few more. alhtough there ndd is a little bit lower, it would often add up to a month of prescription.  
+  All_Inclusion_patid <- full_join(Inclusion_patid1, Inclusion_patid2) %>% 
+    full_join(., Inclusion_patid3) %>% distinct(patid)
+  
+  three_and_two <- tbl_df(semi_join(MedCalculation, All_Inclusion_patid, by = "patid"))
+  
+  Excluded <- tbl_df(anti_join(MedCalculation, All_Inclusion_patid, by = "patid")) %>% arrange(patid)%>% 
+    select(-medduration, -cum_duration, -cum_ndd0)
+  
+  #################################
+  # go to incidence script here
+  #################################
 now: 
-  included = 74620 patients
-  excluded = 10085 patients
+  included = 74620 patients 73327
+  excluded = 10085 patients 11378
 ####
 length(unique(three_and_two$patid))
 length(unique(Excluded$patid))

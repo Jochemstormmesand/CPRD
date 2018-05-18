@@ -22,6 +22,5 @@ of 63867,
   more than 20% missing values..
 if they miss 2 or 3 consecutive values, 
 if they have a gap of > 12 months. 
-if they have very few or many visits? which is more logical? 
-
+if they have very few or many visit? which is more logical? 
 etc etc

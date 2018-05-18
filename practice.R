@@ -13,6 +13,8 @@ library(devtools)
 library(dplyr)
 #install_github("rOpenHealth/rEHR")
 library(rEHR)
+library(rlist)
+library(data.table)
 
 ehr_path <- dirname(system.file("ehr_data", package = "rEHR"))
 
@@ -234,16 +236,14 @@ table(nr_of_diseases_PP$nr_of_diseases)
 
 
 
-colnames(diseases_matching_IS)[9] <- "code"
-colnames(all_diseases_IS_patients)[13] <- "code"
-colnames(other_diseases_PD_patients)[13] <- "code"
+colnames(diseases_matching_IS)[9] <- "readcode"
+colnames(all_diseases_IS_patients)[13] <- "readcode"
+colnames(other_diseases_PD_patients)[13] <- "readcode"
 
 
 #################################
 #using clinicalcodes.org:
 #################################
-clinical_codes_lists <- c()
-
 disease_codes <- c(disease_codes, rheuma_codes)
 disease_codes2 <- tbl_df(do.call(rbind.data.frame, disease_codes))
 disease_codes2 <- disease_codes2 %>% select(-upload_date)

@@ -1,10 +1,4 @@
 ###
-# Use the overloaded`head` function to view a list of
-# tables or the head of individual tables:
-#head(db)
-#head(db, table="Clinical_All_Cut")
-
-###
 library(stringr)
 numextract <- function(string){
   str_extract(string,"\\-*\\d+\\.*\\d*")
@@ -18,9 +12,10 @@ letterextract <- function(string){
 Parkinsoncodes = as.numeric(unlist(strsplit(c("1691 4321 8956	9509 10718 14912 16860 17004 53655 59824 86062 96860 101090"), "\\s+")[[1]]))
 ParkinsonExclusioncodes = as.numeric(unlist(strsplit(c("19478	24001	26181	33544	51105	52589	72879	97170	100128"), "\\s+")[[1]]))
 ImmuneMed = tbl_df(sqldf("SELECT * FROM Prodcodes_Cut", connection = db))
-PD_medcodes <- tbl_df(sqldf("SELECT medcode, desc FROM MedicalReadcodes WHERE medcode IN (1691, 4321, 8956,	9509, 10718, 14912, 16860, 17004, 53655, 59824, 86062, 96860, 101090)", connection = db))
+PD_medcodes <- tbl_df(sqldf("SELECT medcode, readcode, desc FROM MedicalReadcodes WHERE medcode IN (1691, 4321, 8956,	9509, 10718, 14912, 16860, 17004, 53655, 59824, 86062, 96860, 101090)", connection = db))
 All_medcodes <- tbl_df(sqldf("SELECT * FROM MedicalReadcodes", connection = db))
-PD_prodcodes <- tbl_df(sqldf("SELECT cprd_prodcode, description2 FROM prod_pd_treat", connection = db))
+All_prodcodes <- tbl_df(sqldf("SELECT * FROM MedicalProdcodes", connection =db))
+PD_prodcodes <- tbl_df(sqldf("SELECT cprd_prodcode, description2 FROM prod_pd_treat", connection = db)) 
 colnames(PD_prodcodes)[1] <- "prodcode"
 
 
@@ -33,38 +28,23 @@ SelFirstImmuneProducts <- tbl_df(first_events(db, tab="Therapy_All", columns = c
 #SelOtherProducts <- tbl_df(select_events(db,tab = "Therapy_All", columns = '*', 
 #                                 where = "!prodcode %in% .(ImmuneMed$Prodcode)"))
 nImmuneProducts <- tbl_df(unique(SelImmuneProducts$patid))
-nOtherProducts <- tbl_df(unique(SelOtherProducts$patid))
+#nOtherProducts <- tbl_df(unique(SelOtherProducts$patid))
 
-#Change textid column from character to integer...
-#MedCalculation$textid <- as.numeric(as.character(MedCalculation$textid))
-#SELECT COLUMNS FROM common_dosages file
-#Common_Dosages <- tbl_df(select_events(db, tab = "Common_Dosages", columns = c("textid", "text", "daily_dose")))
-#MedCalculation <- tbl_df(left_join(MedCalculation, Common_Dosages))
-
-DrugInfo <- tbl_df(select_events(db, tab="Prodcodes_Cut", columns = '*'))
+DrugInfo <- tbl_df(select_events(db, tab="Prodcodes_Cut", columns = '*')) 
 colnames(DrugInfo)[1] <- "prodcode" #DO THIS IN BASH ALREADY!! NEEDS TO BE DONE EVERYTIME OTHERWISE!
 #ADD PRODUCT NAME AND STRENGTH TO THERAPY FILE
 MedCalculation <- tbl_df(left_join(SelImmuneProducts, DrugInfo))
-#############################
-
-
-###
 colnames(MedCalculation)[11] <- "strength"
-MedCalculation <- MedCalculation %>% 
-  ungroup %>%
-  mutate(Concentration = as.numeric(as.character(numextract(MedCalculation$strength))))
-MedCalculation <- MedCalculation %>%
-  ungroup %>% 
-  mutate(unit = letterextract(MedCalculation$strength))
-MedCalculation <- tbl_df(sqldf("SELECT patid, eventdate, prodcode, consid, qty, ndd, Drug, Concentration, unit, Formulation FROM MedCalculation ORDER BY patid, prodcode, eventdate"))
-#Maybe add issueseq, drug and Formulation when needed later strength...?
-#MedCalculation files filtered on NDD present or not. 
+#############################
 
 
 
 #####################
 # GO to 3months_2consecutive script from here. 
 #####################
+
+
+
 
 
 
@@ -79,7 +59,7 @@ MedCalculation <- MedCalculation %>%
 MedCalculation <- MedCalculation %>%
   mutate(GapDuration = as.integer(lead(BETWEEN) - medduration))
 MedCalculation <- MedCalculation %>%
-  mutate(daily_dose = MedCalculation21$ndd*MedCalculation21$Concentration)
+  mutate(daily_dose = MedCalculation$ndd*MedCalculation$Concentration)
 MedCalculation <- MedCalculation %>%
   mutate(ndd_minimum = case_when(MedCalculation$ndd == 0 ~ MedCalculation$Concentration,
                                  MedCalculation$ndd >0 ~ MedCalculation$ndd * MedCalculation$Concentration))
@@ -103,17 +83,57 @@ MedCalculation <- MedCalculation %>%
 # EDUCATED GUESSES ON DRUG USE;
 library(tidyr)
 #Seems not to work for no reason..If possible, group by less. + TAKES REALLLY LONG, less grouping = faster
-MedCalculation_filled <- MedCalculation %>% 
-  group_by(patid, prodcode, Formulation, Concentration, qty) %>% 
-  fill(ndd)
+#MedCalculation_filled <- MedCalculation %>% 
+#  group_by(patid, prodcode, Formulation, Concentration, qty) %>% 
+#  fill(ndd)
 
+drugs <- c("Etanercept","Azathioprine","Methotrexate sodium","Cyclophosphamide monohydrate","Mycophenolate mofetil",
+           "Mycophenolate sodium","Tacrolimus monohydrate","Infliximab","Rituximab","Tacrolimus","Mycophenolate mofetil hydrochloride",
+           "Ciclosporin","Methotrexate","Cyclophosphamide","Alemtuzumab")
+Formulation <-  c("Injection Solution","Tablet","Solution for injection","Injection","Capsule","Gastro-resistant tablet","Modified-release capsule",
+                  "Powder for solution for infusion","Solution for infusion","Oral suspension","Solution For Injection",
+                  "Once Daily Modified Release Capsules","Powder For Solution For Injection","Powder for solution for injection",
+                  "Powder and solvent for solution for injection","Tablets","Oral solution","Capsules","Concentrate For Solution For Infusion","Granules")  
+paste(drugs,collapse="")
+#FIll out the right values for each drug, and then we should be able to work with daily dose. 
+#problem still: might not be accurate for every value (sometimes the value should be very small because it was done per weekor per day or so..)
 MedCalculation24 <- MedCalculation %>%
   mutate(ndd = case_when(MedCalculation$ndd > 0 ~ MedCalculation$ndd,
-                         MedCalculation$Drug == "Methotrexate" & MedCalculation$Formulation != "Solution for injection" ~ 0.1428571, 
-                         MedCalculation$Drug == "Ciclosporin" & (MedCalculation$Formulation == "Oral solution" | MedCalculation$Formulation == "Capsule") ~ 2,
-                         MedCalculation$Drug == "Mycophenolate Mofetil" ~ 2,
                          MedCalculation$Drug == "Adalimumab" ~ 0.1428571,
-                         MedCalculation$Drug == "Tacrolimus" & MedCalculation$Formulation != "Once Daily Modified Release Capsules" ~ 2,
+                         
+                         MedCalculation$Drug == "Alemtuzumab" ~,
+                         
+                         #makes up 250.000 of the missing ones
+                         MedCalculation$Drug == "Azathioprine" & (MedCalculation$Formulation == "Capsule" | MedCalculation$Formulation == "Capsules"),
+                         MedCalculation$Drug == "Azathioprine" & MedCalculation$Formulation =="Oral solution",  
+                         MedCalculation$Drug == "Azathioprine" & MedCalculation$Formulation =="Oral suspension",
+                         MedCalculation$Drug == "Azathioprine" & MedCalculation$Formulation == "Powder for solution for injection",
+                         MedCalculation$Drug == "Azathioprine" & (MedCalculation$Formulation =="Tablet" | MedCalculation$Formulation =="Tablets"),
+                         
+                         MedCalculation$Drug == "Ciclosporin" & (MedCalculation$Formulation == "Oral solution" | MedCalculation$Formulation == "Capsule") ~ 2,
+                         MedCalculation$Drug == "Ciclosporin" & (MedCalculation$Formulation == "Concentrate For Solution For Infusion" | MedCalculation$Formulation == "Solution for infusion"),
+                         
+                         #makes up 3.000 of the missing ones
+                         (MedCalculation$Drug == "Cyclophosphamide" | MedCalculation$Drug =="Cyclophosphamide monohydrate") & (MedCalculation$Formulation == "Tablet" | MedCalculation$Formulation == "Tablets"),
+                         MedCalculation$Drug == "Cyclophosphamide monohydrate" & MedCalculation$Formulation == "Powder for solution for injection ",
+                         
+                         MedCalculation$Drug == "Etanercept" & (MedCalculation$Formulation == "Injection Solution " | MedCalculation$Formulation == "Powder and solvent for solution for injection" | MedCalculation$Formulation == ignore.case("Solution for injection")),
+                         
+                         MedCalculation$Drug == "Infliximab" ~,
+                         
+                          #makes up 23.000 of the missing ones
+                         MedCalculation$Drug == "Methotrexate" & MedCalculation$Formulation != "Solution for injection" ~ 0.1428571, 
+                         (MedCalculation$Drug == "Methotraxate sodium" | MedCalculation$Drug =="Methotrexate")~,
+                        
+                         #makes up 38.000 of the missing ones
+                         MedCalculation$Drug == "Mycophenolate mofetil" ~ 2,
+                         MedCalculation$Drug == "Mycophenolate mofetil hydrochloride" ~,
+                         
+                         MedCalculation$Drug == "Rituximab" ~ 
+                         
+                          #makes up 3.500 of the missing ones
+                         (MedCalculation$Drug == "Tacrolimus" | MedCalculation$Drug == "Tacrolimus monohydrate") & MedCalculation$Formulation != "Once Daily Modified Release Capsules" ~ 2,
+                         
                          TRUE ~ 0))
 
 Drug_Formulation <- tbl_df(sqldf("SELECT Drug, Formulation, Concentration, unit FROM MedCalculation GROUP BY Drug, Formulation, Concentration"))
