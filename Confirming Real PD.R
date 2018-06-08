@@ -21,9 +21,9 @@ Check_Patients_Meds <- tbl_df(select_events(db, tab = "Therapy_All", columns =  
 
 
 #Combine files for PD codes (medcode) and PD drug codes (prodcode)
-PD_med_prod <- left_join(SelParkinsoncodes, SelParkinsonprodcodes, by = "patid")
-PD_med_prod <- left_join(PD_med_prod, nr_of_PDcodes_PP)
-PD_med_prod <-  left_join(PD_med_prod, nr_of_same_Pdcodes_PP, by = c("patid", "medcode"))
+PD_med_prod <- left_join(SelParkinsoncodes, SelParkinsonprodcodes, by = "patid") %>%
+  left_join(., nr_of_PDcodes_PP)%>%
+  left_join(., nr_of_same_Pdcodes_PP, by = c("patid", "medcode"))
 
 #exclusion
 #just a check up to see if any patients have PD exclusioncodes, which are PD caused by known causes 
@@ -46,23 +46,29 @@ True_PD <- PD_med_prod %>% mutate(inclusion = case_when(
 
 ####
 #PD diagnosed at least 6 months after first IS prescription. Use first statements and select only patients from TRUE_PD
-SelFirstImmuneProductsPD <- tbl_df(semi_join(SelFirstImmuneProducts, True_PD, by = "patid"))
 #combine first PD immunosuppressant prescription and first PD diagnosis.
-IS_before_PD <- left_join(SelFirstImmuneProductsPD, SelFirstParkinsoncodes, by = "patid")
 #If diagnosis is more than 180 days after first prescription, add include variable. 
+#used to be SelFirstImmuneProductsPD
+IS_before_PD <- tbl_df(semi_join(SelFirstImmuneProducts, True_PD, by = "patid")) %>%
+  left_join(., SelFirstParkinsoncodes, by = "patid")
 IS_before_PD <- IS_before_PD %>% 
   mutate(over_six = case_when(as.Date(as.character(IS_before_PD$eventdate.y), format = "%Y-%m-%d") 
                                  - as.Date(as.character(IS_before_PD$eventdate.x), format = "%Y-%m-%d") > 180 ~ "include",
-                                 TRUE ~ "exclude")) %>% 
-  filter(over_six == 'include')
+                                 TRUE ~ "exclude")) %>% filter(over_six == 'include')
 #select those cases where PD is found at least 6 months after IS prescription and other inclusion criteria are met. 
 
-first_PD_diagnosis <- tbl_df(semi_join(SelParkinsoncodes, IS_before_PD, by = "patid")) %>% group_by(patid) %>% slice(c(1)) %>% ungroup()
+first_PD_diagnosis <- tbl_df(semi_join(SelParkinsoncodes, IS_before_PD, by = "patid")) %>% 
+  group_by(patid) %>% slice(c(1)) %>% ungroup()
+#all diagnoses of PD per individual. includes if multiple time the same diagnosis. 
 IS_before_PD_All <- tbl_df(semi_join(SelParkinsoncodes, IS_before_PD, by= "patid")) %>%
-  semi_join(., three_and_two, by = "patid")
+  semi_join(., three_and_two, by = "patid") %>% 
+  group_by(patid) %>% mutate(nr_of_PDcodes_PP = n()) %>% arrange(desc(nr_of_PDcodes_PP))
 
 #This is probably needed to find the PD patients that also fall within the immunosuppressant criteria:
-Final_True_PD <- tbl_df(semi_join(IS_before_PD, three_and_two, by = "patid"))
+Final_True_PD <- tbl_df(semi_join(IS_before_PD, three_and_two, by = "patid")) %>% select(-over_six, -practid)
+Final_True_PD_marker <- Final_True_PD %>% distinct(patid)
+No_PD <- anti_join(three_and_two,Final_True_PD_marker)
+NO_PD_marker <- anti_join(three_and_two_marker,Final_True_PD_marker) %>% distinct(patid)
 #############################
 # Go to comorbidities script here
 #############################
@@ -73,8 +79,4 @@ These patients have received either:
   more than 1 PD diagnosis OR
   1 PD diagnosis but also PD medication
   
-  problem with True_PD statement. 
-  Somehow it leaves me with 138 diagnoses of PD sometimes, instead of the 194 im expecting..
-  apparently based on whether the first join of PD_med_prod is joined by patid, or by patid, eventdate and consid...
-  
-  
+   

@@ -22,9 +22,9 @@
 #install.packages(packageurldevtools, repos = NULL, type="source")
 library(digest)
 library(devtools)
-library(dplyr)
+
 #install_github("rOpenHealth/rEHR")
-library(rEHR)
+
 # ##############
 #install.packages("rlist")
 #library(rlist) #not necessary?
@@ -34,6 +34,8 @@ library(ggplot2)
 library(plotly)
 library(survival)
 library(tableone)
+library(dplyr)
+library(rEHR)
 #TO DO with the script
 # from therapy file get all immunosuppressant codes and see how many are other. 
 # cumulative dose 

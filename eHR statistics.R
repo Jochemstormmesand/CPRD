@@ -15,17 +15,18 @@ PatientInfo2 <- tbl_df(select_events(db, tab = "Patient_001", columns = c("patid
   ungroup() %>%
   semi_join(., three_and_two)
 #Patient demographics for those on IS medication. Added age at time of first prescription. 
-ISInfo <- left_join(SelFirstImmuneProducts, PatientInfo2) %>%
-  semi_join(., three_and_two)%>%
-  mutate(ageatstart = year(eventdate)-yob)
-#Create age groups  
-agebreaks <- c(0,30,40,50,60,70,80,500) #make another exclusion criterium earlier on, because now very very young patients are included...
-agelabels <- c("0-29","30-39","40-49","50-59","60-69","70-79","80+")
-setDT(ISInfo)[ , agegroups := cut(ageatstart, 
-                                breaks = agebreaks, 
-                                right = FALSE, 
-                                labels = agelabels)]
+          # ISInfo <- left_join(SelFirstImmuneProducts, PatientInfo2) %>%
+          #   semi_join(., three_and_two)%>%
+          #   mutate(ageatstart = year(eventdate)-yob)
+          # #Create age groups  
+          # agebreaks <- c(0,30,40,50,60,70,80,500) #make another exclusion criterium earlier on, because now very very young patients are included...
+          # agelabels <- c("0-29","30-39","40-49","50-59","60-69","70-79","80+")
+          # setDT(ISInfo)[ , agegroups := cut(ageatstart, 
+          #                                 breaks = agebreaks, 
+          #                                 right = FALSE, 
+          #                                 labels = agelabels)]
 table1 <- CreateTableOne("gender", data = ISInfo, factorVars = "gender", strata =c("agegroups"))
+table3 <- CreateTableOne(vars =c("incidence"), data = totals10$incidence$gender_counts, strata=c("gender","agegroups"))
 
 PDInfotest <- left_join(SelFirstImmuneProducts, PatientInfo2) %>%
   semi_join(., Final_True_PD) %>%
@@ -37,27 +38,17 @@ PDInfo <- left_join(SelFirstParkinsoncodes, PatientInfo2) %>%
   distinct(eventdate, .keep_all = TRUE) %>% 
   ungroup %>%
   mutate(AgeatOnset = year(eventdate) - yob)
-#PDInfoAge <- PDInfo %>% mutate(deathdateyear = as.numeric(format(as.Date(PDInfo$deathdate, format="%Y-%m-%d"),"%Y")))
-#PDInfoAge <- PDInfoAge %>% mutate(eventdateyear = as.numeric(format(as.Date(PDInfoAge$eventdate, format="%Y-%m-%d"),"%Y")))
-#PDInfoAge <- PDInfoAge %>% mutate(AgeatOnset = PDInfoAge$eventdateyear - PDInfoAge$yob)
 setDT(PDInfo)[ , agegroups := cut(AgeatOnset, 
                                   breaks = agebreaks, 
                                   right = FALSE, 
                                   labels = agelabels)]
 table2 <- CreateTableOne("gender", PDInfo, factorVars = "gender", strata = c("agegroups"))
 print(table2, showAllLevels = TRUE)
-#PDInfoAge <- PDInfoAge %>% mutate(todyear = as.numeric(format(as.Date(PDInfoAge$tod, format="%Y-%m-%d"),"%Y")))
 
-## Possibly needed to calculate age at other timepoint.
-# PatientInfo <- PatientInfo %>% mutate(deathdateyear = as.numeric(format(as.Date(PatientInfo$deathdate, format="%Y-%m-%d"),"%Y")))
-# PatientInfo <- PatientInfo %>% mutate(todyear = as.numeric(format(as.Date(PatientInfo$tod, format="%Y-%m-%d"),"%Y")))
-# PatientInfo <- PatientInfo %>% mutate(age3 = PatientInfo$todyear - PatientInfo$yob)
-# PatientInfo <- PatientInfo %>% mutate(age2 = Startyear - PatientInfo$yob)
-# PatientInfo <- PatientInfo %>% mutate(age1 = PatientInfo$deathdateyear - PatientInfo$yob)
-# PatientInfo$age <- PatientInfo$age1
-# my.na <- is.na(PatientInfo$age)
-# PatientInfo$age[my.na] <- PatientInfo$age2[my.na]
-## Can I do this? maybe they didnt die.. could be inaccurate. 
+PDInfo %>% group_by(gender) %>% summarise(mean = mean(AgeatOnset),
+                                          median = median(AgeatOnset),
+                                          min = min(AgeatOnset),
+                                          max = max(AgeatOnset))
 
 #Age
 #PD patients age at PD onset
@@ -79,7 +70,28 @@ mean(PDInfo$AgeatOnset, na.rm = TRUE)
 median(PDInfo$AgeatOnset, na.rm = TRUE)
 table(PDInfo$AgeatOnset)
 
-#age
+min(PDInfotest$ageatstart, na.rm = TRUE)
+max(PDInfotest$ageatstart, na.rm = TRUE) 
+mean(PDInfotest$ageatstart, na.rm = TRUE)
+median(PDInfotest$ageatstart, na.rm = TRUE)
+table(PDInfotest$ageatstart)
+
+PDInfo %>% group_by(gender) %>% summarise(mean = mean(PDInfo$AgeatOnset),
+                                          median = median(PDInfo$AgeatOnset),
+                                          max = max(PDInfo$AgeatOnset), 
+                    min = min(PDInfo$AgeatOnset))
+PDInfotest %>% group_by(gender) %>% summarise(mean = mean(PDInfotest$ageatstart),
+                                              median = median(PDInfotest $ageatstart),
+                                              max = max(PDInfotest $ageatstart), 
+                                              min = min(PDInfotest $ageatstart))
+
+ageatfirstISPD<- ggplotly(ggplot(PDInfo, aes(x=AgeatOnset, group = gender, col = gender)) + aes(fill = gender) + geom_histogram(binwidth=5) +
+                            scale_x_continuous(limits = c(0,110),breaks=seq(0,110, 5))+
+                            geom_vline(data=PDInfo, aes(xintercept=mean(PDInfo$AgeatOnset, na.rm = T)),
+                                       linetype="dashed", size=1, colour="red") +theme_bw() + 
+                            theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                                  panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")))
+#Age
 #IS patients age at First IS treatment
 plot_ly(x = ISInfo$ageatstart, type = "histogram", name = "Age at first IS treatment")%>% layout(title = "Age at first IS treatment",
                                                                                        yaxis = list(title = 'Frequency'),
@@ -97,7 +109,7 @@ mean(ISInfo$ageatstart, na.rm = TRUE)
 median(ISInfo$ageatstart, na.rm = TRUE)
 
 ageatfirstISPD<- ggplotly(ggplot(PDInfotest, aes(x=ageatstart)) + geom_histogram(binwidth=5, fill="#CCCCCC") +
-                          scale_x_continuous(breaks=seq(0,max(PDInfotest$ageatstart), 5))+
+                          scale_x_continuous(limits = c(0,110),breaks=seq(0,110, 5))+
                           geom_vline(data=PDInfotest, aes(xintercept=mean(PDInfotest$ageatstart, na.rm = T)),
                                      linetype="dashed", size=1, colour="red") +theme_bw() + 
                           theme(panel.border = element_blank(), panel.grid.major = element_blank(),
@@ -107,9 +119,10 @@ max(PDInfotest$ageatstart, na.rm = TRUE)
 mean(PDInfotest$ageatstart, na.rm = TRUE)
 median(PDInfotest$ageatstart, na.rm = TRUE)
 
-PD_ageatstart <- summarise(PDInfotest, mean_age = mean(ageatstart), sd = sd(ageatstart))
-PD_ageatonset <- summarise(PDInfo, mean_age = mean(AgeatOnset), sd = sd(AgeatOnset))
-IS_ageatstart <- summarise(ISInfo, mean_age = mean(ageatstart), sd = sd(ageatstart))
+PD_ageatstart <- summarise(PDInfotest, min = min(ageatstart),max=max(ageatstart), mean_age = mean(ageatstart), sd = sd(ageatstart))
+PD_ageatonset <- summarise(PDInfo, min = min(AgeatOnset),max=max(AgeatOnset),mean_age = mean(AgeatOnset), sd = sd(AgeatOnset))
+IS_ageatstart <- summarise(ISInfo, min = min(ageatstart),max=max(ageatstart),mean_age = mean(ageatstart), sd = sd(ageatstart))
+t.test(PDInfotest$ageatstart,ISInfo$ageatstart)
 
 table2 <- CreateTableOne("gender", PDInfo, factorVars = "gender", strata = c("agegroups"))
 
@@ -117,11 +130,12 @@ table2 <- CreateTableOne("gender", PDInfo, factorVars = "gender", strata = c("ag
 Gender = table(ISInfo$gender)
 GenderPD = table(PDInfo$gender)
 table(ISInfo$gender, PDInfo$gender)
+t.test(PDInfo$gender, ISInfo$gender)
 
 barplot(Gender, main = "Gender", xlab = "Gender", ylab = "Number of Patients")
 
 
-summary_pp_IS <- three_and_two %>% 
+summary_pp_IS_No_PD <- No_PD %>% 
   ungroup() %>% group_by(Drug) %>%
   summarise(nr_pp_immunosup = n_distinct(patid))%>%
   arrange(desc(nr_pp_immunosup))
@@ -130,13 +144,72 @@ summary_pp_IS_PD <- three_and_two %>% semi_join(.,Final_True_PD, by ="patid") %>
   summarise(nr_pp_immunosup = n_distinct(patid))%>%
   arrange(desc(nr_pp_immunosup))
 
+#NR OF PRESCRIPTIONS PP
+nr_of_prescriptions <- three_and_two %>%
+  ungroup %>% group_by(patid,prodcode) %>% 
+  summarise(N_prescriptions = n()) %>% ungroup %>% group_by(patid) %>%
+  mutate(total_prescriptions =sum(N_prescriptions)) %>% ungroup
+quantile(nr_of_prescriptions$N_prescriptions, c(.25,.5,.75))
+quantile(nr_of_prescriptions$total_prescriptions, c(.25,.5,.75))
+nr_of_prescriptions <- nr_of_prescriptions %>% 
+  mutate(level = case_when(
+  .$N_prescriptions <= 5 ~ "low",
+  .$N_prescriptions <= 37 & .$N_prescriptions >5 ~ "medium",
+  TRUE~ "high"),
+  total_level = case_when(
+    .$total_prescriptions <= 18 ~ "low",
+    .$total_prescriptions <= 93 & .$total_prescriptions >18 ~ "medium",
+    TRUE~ "high")) %>% select(-prodcode, -N_prescriptions, -level) %>%
+  distinct()
 
+nr_of_prescriptions_azamet <- three_and_two %>% ungroup %>%
+  filter(grepl("Azathioprine|Methotrexate", Drug, ignore.case = TRUE)) %>%
+  group_by(patid,prodcode) %>% 
+  summarise(N_prescriptions = n()) %>% ungroup %>% group_by(patid) %>%
+  mutate(total_prescriptions =sum(N_prescriptions)) %>% ungroup
+quantile(nr_of_prescriptions_azamet$N_prescriptions, c(.25,.5,.75))
+quantile(nr_of_prescriptions_azamet$total_prescriptions, c(.25,.5,.75))
+nr_of_prescriptions_azamet <- nr_of_prescriptions %>% 
+  mutate(level = case_when(
+    .$N_prescriptions <= 6 ~ "low",
+    .$N_prescriptions <= 41 & .$N_prescriptions >5 ~ "medium",
+    TRUE~ "high"),
+    total_level = case_when(
+      .$total_prescriptions <= 14 ~ "low",
+      .$total_prescriptions <= 71 & .$total_prescriptions >14 ~ "medium",
+      TRUE~ "high")) %>% select(-prodcode, -N_prescriptions, -level) %>%
+  distinct()
 
+p= plot_ly(x =nr_of_prescriptions$N_prescriptions,
+                               type = "histogram",
+                               histnorm = "probability")
+Prescriptions<- ggplotly(ggplot(nr_of_prescriptions, aes(x=total_prescriptions, group = total_level, color = total_level)) + geom_histogram(binwidth=5) +
+                            scale_x_continuous(limits = c(0,700))+
+                            geom_vline(data=nr_of_prescriptions, aes(xintercept=mean(nr_of_prescriptions$total_prescriptions, na.rm = T)),
+                                       linetype="dashed", size=1, colour="red") +theme_bw() + 
+                            theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                                  panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")))
 
+Prescriptions_azamet<- ggplotly(ggplot(nr_of_prescriptions_azamet, aes(x=total_prescriptions, group = total_level, color = total_level)) + geom_histogram(binwidth=5) +
+                           scale_x_continuous(limits = c(0,700))+
+                           geom_vline(data=nr_of_prescriptions_azamet, aes(xintercept=mean(nr_of_prescriptions_azamet$total_prescriptions, na.rm = T)),
+                                      linetype="dashed", size=1, colour="red") +theme_bw() + 
+                           theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                                 panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")))
 
+pp_disease <- plot_ly(x = nr_of_prescriptions$N_prescriptions,
+                      type = "bar") %>% 
+  layout(title = "Number of Patients per Comorbidity",
+         yaxis = list(title = 'Nr of comorbidities'),
+         xaxis = list(title = 'Disease'))
 
-
-
+  
+  
+  
+  
+  
+  
+  
 
 
 #Incidence and Prevalence of PD

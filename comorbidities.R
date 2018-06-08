@@ -28,7 +28,7 @@ three_and_two_marker <- three_and_two %>% distinct(patid) #select All patids of 
 all_diseases_IS_patients <- semi_join(all_diseases, three_and_two_marker) %>%#select from ALL clinical rows the ones where patid of patients with actual IS
   filter(constype ==3) 
 #all_diseases_IS_patients <- tbl_df(sqldf("SELECT * FROM all_diseases_IS_patients WHERE constype ==3"))
-IS_before_PD_marker <- IS_before_PD %>% select(patid) %>% mutate(marker = 1)
+Final_True_PD_marker <- Final_True_PD %>% select(patid) %>% mutate(marker = 1)
 other_diseases_PD_patients <- semi_join(all_diseases, IS_before_PD_marker) %>%
   filter(constype ==3)
 #other_diseases_PD_patients <- tbl_df(sqldf("SELECT * FROM other_diseases_PD_patients WHERE constype ==3"))

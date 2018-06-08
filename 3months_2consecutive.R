@@ -24,8 +24,9 @@ NOW ALL DRUGS AT ONCE, AND IT DOESNT MAKE SENSE FOR FOR EXAMPLE INJECTIONS. SO i
 ####################
   MedCalculation <- MedCalculation %>% 
     ungroup %>%
-    mutate(Concentration = as.numeric(as.character(numextract(MedCalculation$strength))),
-           unit = letterextract(MedCalculation$strength)) %>%
+    mutate(Concentration = as.numeric(as.character(numextract(strength))),
+           unit = letterextract(MedCalculation$strength),
+           daily_dose = ndd * Concentration) %>%
     arrange(patid, prodcode, eventdate) %>%
     select(-textid, -issueseq, -practid) 
   #Maybe add issueseq, drug and Formulation when needed later strength...?
@@ -43,30 +44,29 @@ NOW ALL DRUGS AT ONCE, AND IT DOESNT MAKE SENSE FOR FOR EXAMPLE INJECTIONS. SO i
     mutate(cum_duration = cumsum(medduration),
            cum_ndd0 = cumsum(ndd0)) %>% ungroup %>% 
     select(-idx, -ndd0, - try)
-  ##################################
+  ##################################  
   
   #first, SELECT unique patients that have cum_ndd0 > 1 AND cum_duration > 90 to match inclusion criteria. 
-  Inclusion_patid1 <- MedCalculation %>% filter(cum_duration >= 90 & cum_ndd0 >1)%>% distinct(patid)
+  Inclusion_patid1 <- MedCalculation %>% filter(cum_duration >= 90 & cum_ndd0 >2)%>% distinct(patid)
   
   #second, NO ndd, so alternative methods needed to calculate duration to find which patids to include. 
+  #Correct. Only needs improvement to keep the counter going if the eventdate is the same as previous eventdate.
+  #so something needs to change in the as.period statement to inlcude all of htese. 
   alternative_duration <- tbl_df(anti_join(MedCalculation, Inclusion_patid1, by = "patid")) %>% 
-    select(-medduration, -cum_duration, -cum_ndd0) %>%
+    select(-medduration, -cum_duration, -cum_ndd0) %>% ungroup()%>%
     group_by(patid, prodcode) %>%
     mutate(BETWEEN0=as.numeric(as.period(interval(lag(eventdate,1),eventdate)), unit = "days")) %>% 
-    group_by(idx = cumsum(BETWEEN0 == 0L))%>% 
-    mutate(BETWEEN1=ifelse(is.na(BETWEEN0),0,BETWEEN0))%>%  ungroup()
-  
-  #remove this if line above works. 
-  alternative_duration <- alternative_duration %>% group_by(patid, prodcode,idx = cumsum(BETWEEN1 == 0L)) %>%
-    mutate(FIRST=cumsum(as.numeric(BETWEEN1))) %>% ungroup %>% select(-idx, -BETWEEN0)
-    # mutate(cum_duration = cumsum(medduration),
-    #        cum_ndd0 = cumsum(ndd0)) %>% ungroup %>% 
-    # select(-idx, -ndd0, - try)
-  #same trick as above with the idx...
+    mutate(BETWEEN1=ifelse(is.na(BETWEEN0),0,BETWEEN0))%>% ungroup 
+  alternative_duration$FIRST <- with(alternative_duration, ave(BETWEEN1, cumsum(BETWEEN1== 0), FUN = cumsum))
+  alternative_duration$idx <- as.numeric(alternative_duration$BETWEEN1 > 0)
+  alternative_duration <- alternative_duration %>% group_by(patid,prodcode, idx)
+  alternative_duration$counter <- with(alternative_duration, ave(idx, cumsum(idx == 0), FUN = cumsum)) 
+  alternative_duration <- alternative_duration %>% ungroup() %>% select(-BETWEEN0, -idx)
   
   
+
   #doesn't take gaps into account, so it could be that the 2 consecutive is not correct because of a long gap in between..
-  Inclusion_patid2 <- alternative_duration %>% filter(BETWEEN1 > 1 & FIRST >= 90) %>% distinct(patid)
+  Inclusion_patid2 <- alternative_duration %>% filter(BETWEEN1 > 2 & FIRST >= 90) %>% distinct(patid)
   Inclusion_patid3 <- MedCalculation %>% filter(Drug == "Infliximab"| Drug == "Rituximab" | Drug == "Etanercept"| Drug == "Alemtuzumab" | Drug == "Adalimumab")  %>% distinct(patid)
   
   #Perhaps also include the patients where ndd is known, but n >=3, between1<8000.. That would include a few more. alhtough there ndd is a little bit lower, it would often add up to a month of prescription.  
@@ -74,7 +74,7 @@ NOW ALL DRUGS AT ONCE, AND IT DOESNT MAKE SENSE FOR FOR EXAMPLE INJECTIONS. SO i
     full_join(., Inclusion_patid3) %>% distinct(patid)
   
   three_and_two <- tbl_df(semi_join(MedCalculation, All_Inclusion_patid, by = "patid"))
-  
+  three_and_two_marker <- three_and_two %>% distinct(patid) #select All patids of patients that are properly on IS
   Excluded <- tbl_df(anti_join(MedCalculation, All_Inclusion_patid, by = "patid")) %>% arrange(patid)%>% 
     select(-medduration, -cum_duration, -cum_ndd0)
   
@@ -82,13 +82,33 @@ NOW ALL DRUGS AT ONCE, AND IT DOESNT MAKE SENSE FOR FOR EXAMPLE INJECTIONS. SO i
   # go to incidence script here
   #################################
 now: 
-  included = 74620 patients 73327
-  excluded = 10085 patients 11378
+  included = 74620 patients 72913
+  excluded = 10085 patients 11792
 ####
 length(unique(three_and_two$patid))
 length(unique(Excluded$patid))
 
 
+
+
+#TOTAL DURATION OF EACH PATIENT ON EACH DRUG 
+#1x for alternative duration, then for medcalculation then joined
+#better: Do this for each patient with their total amount of drugs taken: duration *amount
+
+#of 46508 patients. the rest should be obtained with alternative duraiton
+Medcalculation_summary <- MedCalculation %>% semi_join(three_and_two_marker)%>% semi_join(Inclusion_patid1)%>% filter(ndd > 0 &qty >0) %>% group_by(patid, prodcode) %>%
+  summarise(total_duration = max(cum_duration),
+            mean_dose = mean(daily_dose),
+            total_dose = sum(daily_dose),
+            total_meds = total_duration * mean_dose)
+alternative_duration_summary <- alternative_duration %>% semi_join(three_and_two_marker)%>% group_by(patid, prodcode) %>%
+  summarise(total_duration = max(FIRST),
+            mean_dose = mean(Concentration*ndd[ndd!=0]),
+            total_dose = sum(Concentration*ndd[ndd!=0]),
+            total_meds = sum(total_duration*mean_dose))
+Meds_duration_summary <- full_join(Medcalculation_summary, alternative_duration_summary)            
+Meds_duration_summary <- Meds_duration_summary %>% mutate(category=cut(total_meds, breaks=c(-Inf, 1000, 10000, Inf), labels=c("low","middle","high"))) %>%
+  group_by(category) %>% summarise(categories = n())
 
 
 
